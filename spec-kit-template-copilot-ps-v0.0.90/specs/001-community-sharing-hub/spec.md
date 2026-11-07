@@ -1,4 +1,4 @@
-# Project Specification: Local Item Sharing Hub (NeighborShare)
+# Project Specification: Local Item Sharing Hub (ShareHub)
 
 **Feature Branch**: `001-community-sharing-hub`  
 **Created**: 2026-11-06  
@@ -7,7 +7,7 @@
 
 ## Project Description
 
-NeighborShare helps people in a local community lend and borrow high-cost or specialty items, such as tools, equipment, and outdoor gear, instead of buying items they may use only occasionally. Members can publish item details and availability, find items by neighborhood or distance, coordinate borrow requests, and share feedback after a completed borrow.
+ShareHub helps people in a local community lend and borrow high-cost or specialty items, such as tools, equipment, and outdoor gear, instead of buying items they may use only occasionally. Members can publish item details and availability, find items by neighborhood or distance, coordinate borrow requests, and share feedback after a completed borrow.
 
 ## Purpose and Target Audience
 
