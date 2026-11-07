@@ -1,4 +1,4 @@
-# Project Specification: Local Item Sharing Hub (ShareHub)
+# Project Specification: Local Item Sharing Hub (NeighbourShare)
 
 **Feature Branch**: `001-community-sharing-hub`  
 **Created**: 2026-11-06  
