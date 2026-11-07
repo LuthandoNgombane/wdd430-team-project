@@ -31,7 +31,20 @@
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-[Gates determined based on constitution file]
+- Confirm the plan uses Next.js App Router, strict TypeScript without `any`, and
+  Tailwind CSS; document any approved exception.
+- Confirm Server Components are the default, client components are limited to
+  interactive or browser-dependent behavior, and server-side data access and
+  authorization remain on the server.
+- Confirm the UI follows utility-first Tailwind conventions, accessible member
+  workflows, and documented justification for any custom CSS.
+- Define unit, integration, and end-to-end coverage appropriate to changed
+  behavior, including critical lending journeys; document any test exception
+  and compensating verification.
+- For item-sharing workflows, account for item condition, availability, handoff
+  and return expectations, member privacy, and authorization where applicable.
+- Confirm naming conventions and cross-contributor ownership/contracts for work
+  that spans routes, components, or shared types.
 
 ## Project Structure
 
