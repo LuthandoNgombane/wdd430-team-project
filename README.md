@@ -1,5 +1,7 @@
 # wdd430-team-project
 
 Team
--Luthando 
-Sione Uhlig 
+- Luthando Ngombane
+- Sione Uhlig
+- Andrea González
+- Alexander Mendoza 
