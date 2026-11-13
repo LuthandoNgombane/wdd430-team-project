@@ -2,16 +2,35 @@
 
 **Feature Branch**: `001-community-sharing-hub`  
 **Created**: 2026-11-06  
+**Last Updated**: 2026-11-12  
 **Status**: Draft  
 **Input**: User description: Create a localized community sharing hub where members list specialty items, browse nearby items, request to borrow, receive an owner decision, and rate completed borrows.
 
 ## Project Description
 
-ShareHub helps people in a local community lend and borrow high-cost or specialty items, such as tools, equipment, and outdoor gear, instead of buying items they may use only occasionally. Members can publish item details and availability, find items by neighborhood or distance, coordinate borrow requests, and share feedback after a completed borrow.
+NeighbourShare helps people in a local community lend and borrow high-cost or specialty items, such as tools, equipment, and outdoor gear, instead of buying items they may use only occasionally. Members can publish item details and availability, find items in their neighborhood, coordinate borrow requests, and share feedback after a completed borrow.
 
 ## Purpose and Target Audience
 
 The purpose is to make useful, infrequently needed items easier to access locally while helping owners keep control over when and to whom their items are lent. The target audience is community members who own items others may need temporarily and people seeking access to those items nearby.
+
+## Clarifications
+
+### Session 2026-11-12
+
+Scope was reviewed against the project board (issues #2–#11) for feasibility within a student team's timeline.
+
+- Q: How is a member's contact method verified, and is it required for the first release? → A: Verification is by **email link only** (no phone/SMS). It moves to **P2**; in P1, members can use member-only actions immediately after sign-up.
+- Q: Is distance-based filtering required? → A: No. Local discovery uses a **fixed list of neighborhoods**. Distance filtering is **out of scope**.
+- Q: Is rating moderation required? → A: No. Reporting ratings and moderation are **out of scope**. Ratings remain P2.
+- Q: Which endpoint naming is authoritative? → A: The project board's `/api/*` naming (`/api/users`, `/api/listings`, `/api/requests`), matching Next.js route handlers. A refused request has status **rejected** (not "declined").
+- Q: Are the profile page (board #3) and reservation dashboard (board #10) in scope? → A: Yes, both are **P1** (User Stories 6 and 7). Without the dashboard, owners cannot act on incoming requests.
+- Q: What are the allowed categories, conditions, and neighborhoods? → A: Fixed lists defined under **Domain Values**; the team chooses the neighborhood names.
+- Q: What are the photo limits? → A: **1–5 photos** per listing, **5 MB** each, JPEG, PNG, or WebP.
+- Q: Can a listing have multiple availability windows? → A: No. Each listing has **one availability date range**. Dates are whole days, with start and end **inclusive**.
+- Q: Can a borrower withdraw a request? → A: Yes, a borrower can **cancel a pending request** (P1). Cancelling an approved borrow is out of scope.
+- Q: Can logged-out visitors browse? → A: Yes. Browsing and listing details are **public**; sending a request and all other actions require sign-in.
+- Q: What happens to a pending request whose start date passes? → A: It is shown as **expired** and can no longer be approved; no background cleanup job is required.
 
 ## User Scenarios & Testing
 
@@ -21,15 +40,16 @@ A prospective member creates an account so they can list items, request to borro
 
 **Why this priority**: Membership enables trust, ownership, and accountability across all sharing workflows.
 
-**Independent Test**: A new person can register, verify their contact method, and reach an authenticated member experience.
+**Independent Test**: A new person can register with an email address and password, sign in, and reach an authenticated member experience.
 
 **Acceptance Scenarios**:
 
-1. **Given** a person has not registered, **When** they submit valid required account details, **Then** an account is created and they are prompted to verify their contact method before using member-only actions.
-2. **Given** an account already exists for the submitted contact method, **When** the person tries to register again, **Then** registration is rejected with a clear recovery path and no duplicate account is created.
+1. **Given** a person has not registered, **When** they submit valid required account details (name, email, password, neighborhood), **Then** an account is created and they can sign in.
+2. **Given** an account already exists for the submitted email address, **When** the person tries to register again, **Then** registration is rejected with a clear recovery path and no duplicate account is created.
 3. **Given** required account details are missing or invalid, **When** the person submits the form, **Then** the missing or invalid fields are identified and no account is created.
-4. **Given** a member has verified their contact method, **When** they submit valid sign-in credentials, **Then** they can access member-only actions.
+4. **Given** a member has an account, **When** they submit valid sign-in credentials, **Then** they can access member-only actions.
 5. **Given** a member is signed in, **When** they choose to sign out, **Then** the current session ends and member-only actions require them to sign in again.
+6. *(P2)* **Given** email verification is enabled and a person has just registered, **When** they open the verification link sent to their email before it expires, **Then** their email is marked verified; until then, member-only actions prompt them to verify and offer to resend the link.
 
 ### User Story 2 - Create and manage item listings (Priority: P1)
 
@@ -41,7 +61,7 @@ An owner creates, views, edits, or removes a listing so nearby members can see w
 
 **Acceptance Scenarios**:
 
-1. **Given** an authenticated member has an item to share, **When** they provide a title, description, one or more photos, category, condition, neighborhood, and availability dates, **Then** the listing is saved and visible to its owner.
+1. **Given** an authenticated member has an item to share, **When** they provide a title, description, 1–5 photos, category, condition, neighborhood, and an availability date range, **Then** the listing is saved and visible to its owner.
 2. **Given** an owner has a saved listing, **When** they open it, **Then** the current photos, category, condition, and availability dates are shown.
 3. **Given** an owner has a listing with no conflicting approved borrow, **When** they update its details or availability, **Then** the updated information is saved and shown to other members.
 4. **Given** an owner has a listing with no pending or approved borrow that would be affected, **When** they remove the listing, **Then** it is no longer available in community browsing and remains unavailable by its former public listing address.
@@ -51,36 +71,41 @@ An owner creates, views, edits, or removes a listing so nearby members can see w
 
 ### User Story 3 - Find a nearby item (Priority: P1)
 
-A member browses and filters listings to find an item that is suitable and available nearby.
+A member or logged-out visitor browses and filters listings to find an item that is suitable and available in their neighborhood. Sending a request requires sign-in.
 
 **Why this priority**: Local discovery connects item owners with people who need access to their items.
 
-**Independent Test**: A member can browse listings and narrow results by neighborhood or distance, category, and requested availability dates.
+**Independent Test**: A member can browse listings and narrow results by neighborhood, category, and requested availability dates.
 
 **Acceptance Scenarios**:
 
 1. **Given** available listings exist, **When** a member browses the community, **Then** each result shows enough information to compare items, including photo, category, condition, and availability.
-2. **Given** a member chooses a neighborhood, **When** they apply the neighborhood filter, **Then** only matching listings are shown.
-3. **Given** a member chooses a distance and availability date range, **When** they apply those filters, **Then** only listings within that distance and available for the full date range are shown.
+2. **Given** a member chooses a neighborhood from the supported list, **When** they apply the neighborhood filter, **Then** only matching listings are shown.
+3. **Given** a member chooses an availability date range, **When** they apply that filter, **Then** only listings available for the full date range are shown.
 4. **Given** filters match no listings, **When** results load, **Then** the member sees a clear empty state and can change or clear filters.
 5. **Given** a member views a listing before an owner approves a request, **When** the listing is displayed, **Then** the owner's exact pickup address and private contact details are not exposed.
+6. **Given** a visitor is not signed in, **When** they open a listing's detail page, **Then** they can see its public details, but the request option prompts them to sign in.
 
 ### User Story 4 - Request to borrow and receive an owner decision (Priority: P1)
 
-A member requests an available date range, and the owner approves or declines the request.
+A member requests an available date range, and the owner approves or rejects the request.
 
 **Why this priority**: A clear request and decision process is the core transaction between a borrower and an owner.
 
-**Independent Test**: A borrower submits a request for an available listing, and its owner can approve or decline it with both members seeing the resulting status.
+**Independent Test**: A borrower submits a request for an available listing, and its owner can approve or reject it with both members seeing the resulting status.
 
 **Acceptance Scenarios**:
 
 1. **Given** a member is viewing an item available for the requested dates, **When** they submit a borrow request with dates and a message, **Then** a pending request is created and visible to both participants.
 2. **Given** a request is pending for an item they own, **When** the owner approves it, **Then** the request status becomes approved, the dates are reserved, and handoff details can be shared with the participants.
-3. **Given** a request is pending for an item they own, **When** the owner declines it, **Then** the request status becomes declined and the item remains available if no other approved borrow reserves those dates.
-4. **Given** a request is not pending or the member is not its owner, **When** they attempt to approve or decline it, **Then** the decision is rejected and the request state is unchanged.
+3. **Given** a request is pending for an item they own, **When** the owner rejects it, **Then** the request status becomes rejected and the item remains available if no other approved borrow reserves those dates.
+4. **Given** a request is not pending or the member is not its owner, **When** they attempt to approve or reject it, **Then** the decision is rejected and the request state is unchanged.
 5. **Given** an overlapping request was approved first, **When** the owner attempts to approve another request for the same dates, **Then** the conflicting approval is rejected and the owner is asked to select or coordinate a non-overlapping date range.
 6. **Given** a member requests dates outside an item's availability, **When** they submit the request, **Then** it is rejected and the available dates are shown.
+7. **Given** a member owns a listing, **When** they try to request their own listing, **Then** the request is rejected.
+8. **Given** a borrower has a pending request, **When** they cancel it, **Then** its status becomes cancelled, the owner sees the change, and the request can no longer be approved.
+9. **Given** a request is approved, rejected, or completed, **When** the borrower tries to cancel it, **Then** the cancellation is rejected and the request state is unchanged.
+10. **Given** a request is still pending when its start date passes, **When** either participant views it, **Then** it is shown as expired and the owner can no longer approve it.
 
 ### User Story 5 - Complete a borrow and leave a rating (Priority: P2)
 
@@ -94,91 +119,147 @@ After an item is returned, the participants record completion and rate one anoth
 
 1. **Given** an approved borrow has ended and the item has been returned, **When** the owner confirms the return, **Then** the borrow is marked completed and both participants can rate the other.
 2. **Given** a borrow is completed, **When** either participant submits a rating and optional written feedback for the other participant, **Then** the rating is saved and associated with that borrow.
-3. **Given** a borrow is pending, declined, or not completed, **When** a participant attempts to submit a rating, **Then** the rating is rejected.
+3. **Given** a borrow is pending, rejected, or not completed, **When** a participant attempts to submit a rating, **Then** the rating is rejected.
 4. **Given** a participant has already rated the other participant for a completed borrow, **When** they try to submit another rating for the same borrow, **Then** the duplicate is rejected and the saved rating remains unchanged.
-5. **Given** a member sees a published rating, **When** they report it with a reason, **Then** it is queued for moderation and the report is visible to authorized moderators.
+
+### User Story 6 - Manage my profile (Priority: P1)
+
+A member maintains their profile so others know who they are sharing with, while private contact details stay protected.
+
+**Why this priority**: Owners and borrowers need a name and neighborhood to decide whom to lend to, and contact details are needed to arrange handoff after approval.
+
+**Independent Test**: A member can edit their profile, other members see only the public fields, and a borrower sees the owner's contact details only after approval.
+
+**Acceptance Scenarios**:
+
+1. **Given** a member is signed in, **When** they update their name, neighborhood, contact details (email and optional phone), or short bio with valid values, **Then** the changes are saved.
+2. **Given** any visitor opens a member's public profile, **When** it is displayed, **Then** it shows only the member's name, neighborhood, bio, and active listings, never their contact details.
+3. **Given** a borrow request is approved, **When** the borrower views that request, **Then** the owner's contact details and pickup information are shown to the borrower.
+4. **Given** a request is pending, rejected, or cancelled, **When** the borrower views it, **Then** the owner's contact details remain hidden.
+
+### User Story 7 - Track my listings and requests (Priority: P1)
+
+A member uses a dashboard to see their listings, the requests they received as an owner, and the requests they sent as a borrower.
+
+**Why this priority**: Owners cannot approve or reject requests, and borrowers cannot follow their requests, without one place showing them.
+
+**Independent Test**: A member with listings and requests in each role sees each item in the correct dashboard section with its current status and available actions.
+
+**Acceptance Scenarios**:
+
+1. **Given** a member is signed in, **When** they open the dashboard, **Then** they see three sections: My listings, Incoming requests, and My requests.
+2. **Given** an incoming request is pending, **When** the owner views it on the dashboard, **Then** they can approve or reject it from there.
+3. **Given** a member has sent requests, **When** they view My requests, **Then** each shows a status badge (pending, approved, rejected, cancelled, completed, or expired), and pending ones can be cancelled.
+4. **Given** a section has nothing to show, **When** the dashboard loads, **Then** that section shows an empty state with a helpful next step (for example, "Create a listing" or "Explore items").
+5. **Given** a visitor is not signed in, **When** they open the dashboard address, **Then** they are redirected to sign in.
 
 ### Edge Cases
 
-- A listing has no photo, a photo cannot be displayed, or submitted photos exceed the supported count or size; the owner receives actionable validation and can correct the listing.
+- A listing has no photo, a photo cannot be displayed, or submitted photos exceed the supported count (5) or size (5 MB each) or use an unsupported type; the owner receives actionable validation and can correct the listing.
+- A request ending on the same day another approved request starts overlaps it, because date ranges are inclusive whole days.
+- A pending request's start date passes without a decision; it is shown as expired and cannot be approved.
 - An owner edits availability while requests are pending; pending requests are not silently approved, and any request made invalid by the change is clearly identified to its participants.
 - An item becomes unavailable between search and request submission; the request is revalidated against current availability and is not accepted for conflicting dates.
 - A member removes an account or listing with pending or approved borrows; unresolved borrows must be completed or explicitly resolved before removal.
-- A member's location is unavailable; browsing remains usable by neighborhood, and the member is not required to reveal an exact address to browse.
-- A rating contains abusive or identifying private information; members can report it for moderation, and public display follows community moderation rules.
+- Browsing never requires a member to reveal an exact address; local discovery relies only on the member's chosen neighborhood.
+- A rating's written feedback is limited in length to reduce the risk of abusive or identifying content; there is no moderation workflow in this project scope.
 - Two owners or borrowers attempt conflicting state changes at the same time; only a valid transition is accepted and participants see the current state.
 
 ## Requirements
 
 ### Functional Requirements
 
-- **FR-001**: The system MUST allow a person to register as a member and verify their contact method before member-only actions.
+- **FR-001**: The system MUST allow a person to register as a member with a unique email address. *(P2)* The system SHOULD verify the member's email address by a time-limited link before member-only actions once email verification is enabled.
 - **FR-002**: The system MUST allow an authenticated member to create, read, update, and delete their own item listings.
-- **FR-003**: Each listing MUST include a title, description, one or more photos, category, condition, neighborhood, and availability dates.
+- **FR-003**: Each listing MUST include a title, description, 1–5 photos (JPEG, PNG, or WebP, at most 5 MB each), category, condition, neighborhood, and one availability date range.
 - **FR-004**: The system MUST validate listing fields and date ranges before publishing or updating a listing.
-- **FR-005**: The system MUST allow members to browse listings and filter by neighborhood or distance, category, and availability date range.
+- **FR-005**: The system MUST allow members to browse listings and filter by neighborhood, category, and availability date range. Categories, conditions, and neighborhoods MUST come from the fixed lists under Domain Values. Browsing and listing details MUST be available without sign-in.
 - **FR-006**: The system MUST show listing photo, category, condition, and availability in browse and detail views.
 - **FR-007**: The system MUST keep exact pickup addresses and private contact details hidden from other members until an owner approves a borrow request.
 - **FR-008**: The system MUST allow an authenticated member to request an item for a date range and MUST show the request status to both participants.
-- **FR-009**: The system MUST allow only the item's owner to approve or decline a pending request.
+- **FR-009**: The system MUST allow only the item's owner to approve or reject a pending request.
 - **FR-010**: An approved borrow MUST reserve the agreed dates; the system MUST prevent a conflicting approval for the same item and dates.
 - **FR-011**: The system MUST prevent listing changes or deletion that conflict with an approved borrow, prevent deletion while pending requests exist, and identify any pending request affected by an availability change to both participants.
 - **FR-012**: The system MUST allow the owner to confirm return and completion of an approved borrow.
 - **FR-013**: After completion, each participant MUST be able to submit one rating for the other participant for that borrow.
 - **FR-014**: The system MUST reject ratings for borrows that are not completed and duplicate ratings for the same participant and borrow.
-- **FR-015**: The system MUST provide a way to report a rating for moderation.
-- **FR-016**: The system MUST allow a verified member to start and end an authenticated session.
+- **FR-015**: *(Removed 2026-11-12: reporting ratings for moderation is out of scope.)*
+- **FR-016**: The system MUST allow a registered member to start and end an authenticated session.
+- **FR-017**: The system MUST allow a member to view and edit their own profile (name, neighborhood, contact details, short bio) and MUST show other visitors only the public profile fields.
+- **FR-018**: The system MUST provide a signed-in dashboard listing the member's listings, incoming requests on their listings, and their own borrow requests with current status.
+- **FR-019**: The system MUST allow only the borrower to cancel their own request, and only while it is pending.
+- **FR-020**: The system MUST treat availability and request dates as whole days with inclusive start and end dates, and MUST treat a pending request whose start date has passed as expired and not approvable.
+- **FR-021**: The system MUST reject a request from a member for their own listing.
 
 ### Key Entities
 
-- **Member**: A community participant with verified contact details, a chosen neighborhood or approximate location, account status, and a sharing history.
-- **Item Listing**: An item offered by one owner, with descriptive text, photos, category, condition, neighborhood, availability, and listing status.
-- **Borrow Request**: A request by one member to borrow another member's listed item for a date range, with a message, status, decision, and completion state.
-- **Rating**: A score and optional written feedback from one participant to the other, tied to a completed borrow and subject to moderation.
+- **Member**: A community participant with a name, sign-in email address, chosen neighborhood, short bio, private contact details (email and optional phone), an email-verified flag (P2), account status, and a sharing history.
+- **Item Listing**: An item offered by one owner, with descriptive text, 1–5 photos, category, condition, neighborhood, one availability date range, and listing status.
+- **Borrow Request**: A request by one member to borrow another member's listed item for a date range, with a message and a stored status of `pending`, `approved`, `rejected`, `cancelled`, or `completed`. `expired` is derived for display when a pending request's start date has passed; it is not stored.
+- **Rating**: A score and optional written feedback from one participant to the other, tied to a completed borrow.
+
+### Domain Values
+
+- **Categories**: Tools; Garden & Yard; Outdoor & Camping; Sports & Fitness; Electronics; Kitchen & Appliances; Party & Events; Other.
+- **Conditions**: New; Like new; Good; Fair.
+- **Neighborhoods**: A fixed list of 6–10 neighborhood names for one town, chosen by the team before implementation.
+
+These lists are implemented as TypeScript union types and used for both form options and server-side validation.
 
 ### API Endpoints
 
-The following resource endpoints describe the capabilities required by this specification. They do not prescribe a particular transport implementation beyond the listed HTTP method and path.
+The following route handler endpoints describe the capabilities required by this specification and match the project board issues. Paths use Next.js App Router conventions (`app/api/.../route.ts`); `[id]` is a dynamic segment. If the chosen auth library (for example Auth.js) provides its own sign-in and sign-out routes, those replace the session endpoints below.
 
 | Method | Endpoint | Purpose | Priority |
 |---|---|---|---|
-| `POST` | `/members` | Register a member and begin contact verification | P1 |
-| `POST` | `/sessions` | Start an authenticated member session | P1 |
-| `DELETE` | `/sessions/current` | End the current member session | P1 |
-| `GET` | `/items` | Browse items; accept neighborhood, distance, category, and availability filters | P1 |
-| `POST` | `/items` | Create an item listing | P1 |
-| `GET` | `/items/{itemId}` | Read an item listing and its public details | P1 |
-| `PATCH` | `/items/{itemId}` | Update an owned listing when changes do not conflict with approved borrows | P1 |
-| `DELETE` | `/items/{itemId}` | Remove an owned listing when no unresolved borrow prevents removal | P1 |
-| `POST` | `/items/{itemId}/borrow-requests` | Submit a borrow request for dates and a message | P1 |
-| `GET` | `/borrow-requests` | List requests visible to the current member, optionally filtered by status or role | P1 |
-| `GET` | `/borrow-requests/{requestId}` | Read a request visible to one of its participants | P1 |
-| `PATCH` | `/borrow-requests/{requestId}` | Approve or decline a pending request as its owner | P1 |
-| `POST` | `/borrow-requests/{requestId}/completion` | Confirm return and complete an approved borrow | P2 |
-| `POST` | `/borrow-requests/{requestId}/ratings` | Submit one participant rating after completion | P2 |
-| `GET` | `/members/{memberId}/ratings` | Read a member's published ratings | P2 |
-| `POST` | `/ratings/{ratingId}/reports` | Report a rating for moderation | P2 |
+| `POST` | `/api/users` | Register a member | P1 |
+| `GET` | `/api/users/me` | Read the signed-in member's full profile | P1 |
+| `PATCH` | `/api/users/me` | Update the signed-in member's profile | P1 |
+| `GET` | `/api/users/[id]` | Read a member's public profile and active listings | P1 |
+| `POST` | `/api/auth/login` | Start an authenticated member session | P1 |
+| `POST` | `/api/auth/logout` | End the current member session | P1 |
+| `GET` | `/api/listings` | Browse listings; accept neighborhood, category, and availability filters | P1 |
+| `POST` | `/api/listings` | Create a listing | P1 |
+| `GET` | `/api/listings/[id]` | Read a listing and its public details | P1 |
+| `PATCH` | `/api/listings/[id]` | Update an owned listing when changes do not conflict with approved borrows | P1 |
+| `DELETE` | `/api/listings/[id]` | Remove an owned listing when no unresolved borrow prevents removal | P1 |
+| `POST` | `/api/requests` | Submit a borrow request for a listing, with dates and a message | P1 |
+| `GET` | `/api/requests` | List requests visible to the current member; filter by `role=owner\|borrower` and status | P1 |
+| `GET` | `/api/requests/[id]` | Read a request visible to one of its participants | P1 |
+| `PATCH` | `/api/requests/[id]` | Approve or reject a pending request as its owner, or cancel it as its borrower | P1 |
+| `POST` | `/api/requests/[id]/completion` | Confirm return and complete an approved borrow | P2 |
+| `POST` | `/api/requests/[id]/ratings` | Submit one participant rating after completion | P2 |
+| `GET` | `/api/users/[id]/ratings` | Read a member's ratings | P2 |
+| `GET` | `/api/auth/verify` | Confirm an email verification token | P2 |
 
 ### Implementation Priority
 
-- **P1 - Minimum viable sharing**: Member registration and session access; item listing create/read/update/delete; browsing and local filters; borrow requests; owner approval or decline; privacy and availability safeguards.
-- **P2 - Trust and lifecycle completion**: Return confirmation; participant ratings; rating reports and moderation workflow; published rating history.
+- **P1 - Minimum viable sharing**: Member registration and session access; member profile; listing create/read/update/delete; public browsing with neighborhood, category, and date filters; borrow requests and borrower cancellation; owner approval or rejection; reservation dashboard; privacy and availability safeguards.
+- **P2 - Trust and lifecycle completion**: Return confirmation; participant ratings; member rating history; email verification.
+
+### Out of Scope
+
+- Distance-based or map-based search, geocoding, and device location.
+- Reporting ratings, moderation workflows, and moderator/admin roles.
+- Phone or SMS verification.
+- Multiple availability windows per listing.
+- Cancelling an approved borrow (participants arrange this between themselves).
+- Payments, deposits, insurance, delivery, dispute resolution, and legal agreements.
 
 ### Assumptions
 
-- Each member chooses a neighborhood or provides approximate location for local discovery; exact pickup details are shared only after approval.
+- Each member chooses a neighborhood from a fixed list for local discovery; exact pickup details are shared only after approval.
 - A listing owner confirms that an item has been returned. Both participants may then rate one another once for that borrow.
-- Ratings use a bounded score with optional written feedback; moderation can hide reported content pending review.
-- Payments, deposits, insurance, delivery, dispute resolution, and legal agreements are outside this initial project scope.
-- The feature depends on a location source for distance filtering, photo upload and viewing capability for listings, and an operating moderation process for reported ratings; no external partner integration is assumed.
+- Ratings use a 1–5 score with optional, length-limited written feedback.
+- The feature depends on photo upload and storage for listings. Email delivery is needed only for P2 email verification; in development, verification links may be logged to the server console instead of emailed.
 
 ## Success Criteria
 
 ### Measurable Outcomes
 
-- **SC-001**: At least 90% of first-time members can complete registration and contact verification in under 3 minutes during usability testing.
+- **SC-001**: At least 90% of first-time members can complete registration and sign in in under 3 minutes during usability testing.
 - **SC-002**: At least 90% of owners can publish a listing with required details and photos in under 5 minutes.
-- **SC-003**: At least 90% of test participants can find an item matching their selected neighborhood or distance and date filters in under 2 minutes.
+- **SC-003**: At least 90% of test participants can find an item matching their selected neighborhood and date filters in under 2 minutes.
 - **SC-004**: At least 95% of valid borrow requests appear in both participants' request views within 5 seconds of submission.
 - **SC-005**: At least 90% of participants can submit a post-completion rating in under 2 minutes.
 - **SC-006**: No tested unauthorized account can change another member's listing, decide their request, access hidden pickup details, or submit a rating on their behalf.
