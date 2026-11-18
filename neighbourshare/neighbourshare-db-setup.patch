@@ -1,0 +1,719 @@
+From 2924d415f4307086fb9793349c8ac31c279fb671 Mon Sep 17 00:00:00 2001
+From: Codex <codex@openai.com>
+Date: Tue, 17 Nov 2026 14:23:03 +0200
+Subject: [PATCH] Set up PostgreSQL schema, connection and repeatable demo data
+
+---
+ neighbourshare/.env.example            |   4 +
+ neighbourshare/.gitignore              |   3 +
+ neighbourshare/README.md               |  27 ++++
+ neighbourshare/db/001-initial.sql      |  50 +++++++
+ neighbourshare/db/neighborhoods.json   |   1 +
+ neighbourshare/lib/db.ts               |  33 +++++
+ neighbourshare/lib/domain.ts           |   8 ++
+ neighbourshare/package-lock.json       | 190 ++++++++++++++++++++++++-
+ neighbourshare/package.json            |  16 ++-
+ neighbourshare/public/seed-item.svg    |   1 +
+ neighbourshare/scripts/check-db.mjs    |   2 +
+ neighbourshare/scripts/database.mjs    |  41 ++++++
+ neighbourshare/scripts/migrate.mjs     |   2 +
+ neighbourshare/scripts/seed-data.mjs   |  46 ++++++
+ neighbourshare/scripts/seed.mjs        |  12 ++
+ neighbourshare/tests/database.test.mjs |  51 +++++++
+ 16 files changed, 484 insertions(+), 3 deletions(-)
+ create mode 100644 neighbourshare/.env.example
+ create mode 100644 neighbourshare/db/001-initial.sql
+ create mode 100644 neighbourshare/db/neighborhoods.json
+ create mode 100644 neighbourshare/lib/db.ts
+ create mode 100644 neighbourshare/lib/domain.ts
+ create mode 100644 neighbourshare/public/seed-item.svg
+ create mode 100644 neighbourshare/scripts/check-db.mjs
+ create mode 100644 neighbourshare/scripts/database.mjs
+ create mode 100644 neighbourshare/scripts/migrate.mjs
+ create mode 100644 neighbourshare/scripts/seed-data.mjs
+ create mode 100644 neighbourshare/scripts/seed.mjs
+ create mode 100644 neighbourshare/tests/database.test.mjs
+
+diff --git a/neighbourshare/.env.example b/neighbourshare/.env.example
+new file mode 100644
+index 0000000..b8db8e5
+--- /dev/null
++++ b/neighbourshare/.env.example
+@@ -0,0 +1,4 @@
++# Copy to .env.local. Paste the Neon pooled connection URL from its Connect dialog.
++DATABASE_URL=postgresql://USER:PASSWORD@HOST/neondb?sslmode=require
++# Required only by npm run seed; choose a development-only password (8+ characters).
++SEED_PASSWORD=
+diff --git a/neighbourshare/.gitignore b/neighbourshare/.gitignore
+index 5ef6a52..a1b470f 100644
+--- a/neighbourshare/.gitignore
++++ b/neighbourshare/.gitignore
+@@ -39,3 +39,6 @@ yarn-error.log*
+ # typescript
+ *.tsbuildinfo
+ next-env.d.ts
++
++# Commit the template, never local credentials
++!.env.example
+diff --git a/neighbourshare/README.md b/neighbourshare/README.md
+index e215bc4..1a84d89 100644
+--- a/neighbourshare/README.md
++++ b/neighbourshare/README.md
+@@ -34,3 +34,30 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
+ The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+ 
+ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
++
++## PostgreSQL setup (issues #10 and #11)
++
++Requires Node.js 20.12+ and PostgreSQL (Neon recommended). Run commands from `neighbourshare/`.
++
++1. Create a Neon project and database. In **Connect**, select the pooled connection URL. Use a separate development database for demo data.
++2. Copy `.env.example` to `.env.local` and set `DATABASE_URL` to that URL, keeping `sslmode=require`. Never commit this file. Share credentials privately through your team's chosen secure channel.
++3. Run `npm ci`, then `npm run db:check` and `npm run db:migrate`.
++4. The authoritative spec still leaves the eight neighborhood names TBD. Replace the empty array in `db/neighborhoods.json` with the team's **eight agreed, distinct names** before seeding. The seed command deliberately refuses an empty or invalid list. Do not use guessed names. The neighborhoods table supplies form/validation options until the spec is finalized; a literal TypeScript neighborhood union must be added with the agreed list.
++5. Set a development-only `SEED_PASSWORD` (at least 8 characters, at most 72 UTF-8 bytes) in `.env.local`, then run `npm run seed`. This also applies the migration on an empty database.
++6. Run `npm run dev`. Server modules can import `getDb` and `withTransaction` from `@/lib/db`. Use parameterized queries (`$1`, `$2`, etc.). For transactions, use only the callback's client.
++
++The schema creates `users`, `listings`, `borrow_requests`, a neighborhood lookup table, and a migration ledger. Migrations run once under a transaction/advisory lock. They do not drop or reset existing data; an unrelated existing schema needs manual review before adoption.
++
++The seed creates three demo accounts (`demo1@example.com`, `demo2@example.com`, `demo3@example.com`), eight listings spanning every category and neighborhood, and requests in all five stored statuses. Passwords use bcrypt. Rerunning preserves existing demo records and passwords; changing SEED_PASSWORD does not reset them. Demo photos use a local SVG placeholder for reliable rendering; real listing uploads must still enforce the JPEG/PNG/WebP limits in issue #19.
++
++Categories, conditions and stored request statuses exactly match the specification. `rating` accepts NULL or integer 1–5. Whole-day ranges use PostgreSQL `date`, with start <= end. `expired` is derived from pending requests whose start date has passed; it is never stored. The spec does not enumerate user/listing status values, so this setup uses `active` and `inactive` with `active` as the default.
++
++Foreign keys preserve references, email uniqueness ignores case and surrounding whitespace, and application code is server-only. Authorization, privacy-safe response fields, ownership checks, overlap prevention and allowed status transitions remain the responsibility of their API issues (#18, #22–#28); this schema does not implement those endpoints. Never return password hashes or private contact fields in public queries.
++
++For Vercel, set DATABASE_URL separately in the intended environment(s), using isolated preview/development data where possible. SEED_PASSWORD is only needed by the seed command, not the running app. Do not seed automatically during builds.
++
++### Verification
++
++`npm run test:db` runs the migration and seed twice in an isolated PGlite PostgreSQL engine and verifies counts, bcrypt passwords, domains, unique emails, foreign keys, dates and rating bounds. It uses fictional neighborhood fixtures, never a live Neon database. Also run `npx tsc --noEmit` and `npm run lint`.
++
++Live Neon acceptance still requires a connected Neon project, the finalized neighborhood names, and successful `db:check`, `db:migrate`, and `seed` against the development database. Do not mark issues #10/#11 fully complete until those steps pass.
+diff --git a/neighbourshare/db/001-initial.sql b/neighbourshare/db/001-initial.sql
+new file mode 100644
+index 0000000..431bd2f
+--- /dev/null
++++ b/neighbourshare/db/001-initial.sql
+@@ -0,0 +1,50 @@
++CREATE TABLE neighborhoods (
++  name text PRIMARY KEY CHECK (btrim(name) <> '')
++);
++
++CREATE TABLE users (
++  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
++  name text NOT NULL CHECK (btrim(name) <> ''),
++  email text NOT NULL CHECK (btrim(email) <> ''),
++  password_hash text NOT NULL CHECK (btrim(password_hash) <> ''),
++  neighborhood text NOT NULL REFERENCES neighborhoods(name),
++  bio text NOT NULL DEFAULT '',
++  phone text,
++  email_verified boolean NOT NULL DEFAULT false,
++  status text NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'inactive')),
++  created_at timestamptz NOT NULL DEFAULT now()
++);
++CREATE UNIQUE INDEX users_email_unique ON users (lower(btrim(email)));
++
++CREATE TABLE listings (
++  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
++  owner_id uuid NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
++  title text NOT NULL CHECK (btrim(title) <> ''),
++  description text NOT NULL CHECK (btrim(description) <> ''),
++  photo_url text NOT NULL CHECK (btrim(photo_url) <> ''),
++  category text NOT NULL CHECK (category IN ('Tools', 'Garden & Yard', 'Outdoor & Camping', 'Sports & Fitness', 'Electronics', 'Kitchen & Appliances', 'Party & Events', 'Other')),
++  condition text NOT NULL CHECK (condition IN ('New', 'Like new', 'Good', 'Fair')),
++  neighborhood text NOT NULL REFERENCES neighborhoods(name),
++  available_from date NOT NULL,
++  available_to date NOT NULL,
++  status text NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'inactive')),
++  created_at timestamptz NOT NULL DEFAULT now(),
++  CHECK (available_from <= available_to)
++);
++CREATE INDEX listings_owner_idx ON listings(owner_id);
++CREATE INDEX listings_browse_idx ON listings(neighborhood, category) WHERE status = 'active';
++
++CREATE TABLE borrow_requests (
++  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
++  listing_id uuid NOT NULL REFERENCES listings(id) ON DELETE RESTRICT,
++  borrower_id uuid NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
++  start_date date NOT NULL,
++  end_date date NOT NULL,
++  message text NOT NULL CHECK (btrim(message) <> ''),
++  status text NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected', 'cancelled', 'completed')),
++  rating smallint CHECK (rating BETWEEN 1 AND 5),
++  created_at timestamptz NOT NULL DEFAULT now(),
++  CHECK (start_date <= end_date)
++);
++CREATE INDEX borrow_requests_listing_status_idx ON borrow_requests(listing_id, status);
++CREATE INDEX borrow_requests_borrower_idx ON borrow_requests(borrower_id);
+diff --git a/neighbourshare/db/neighborhoods.json b/neighbourshare/db/neighborhoods.json
+new file mode 100644
+index 0000000..fe51488
+--- /dev/null
++++ b/neighbourshare/db/neighborhoods.json
+@@ -0,0 +1 @@
++[]
+diff --git a/neighbourshare/lib/db.ts b/neighbourshare/lib/db.ts
+new file mode 100644
+index 0000000..00932b1
+--- /dev/null
++++ b/neighbourshare/lib/db.ts
+@@ -0,0 +1,33 @@
++import 'server-only';
++import { Pool, type PoolClient } from 'pg';
++
++const globalForDb = globalThis as unknown as { neighbourSharePool?: Pool };
++
++/** Use from server code only. Neon URLs must include sslmode=require. */
++export function getDb(): Pool {
++  if (!process.env.DATABASE_URL) {
++    throw new Error('DATABASE_URL is missing. Configure .env.local using .env.example.');
++  }
++  return (globalForDb.neighbourSharePool ??= new Pool({
++    connectionString: process.env.DATABASE_URL,
++    max: 3,
++    connectionTimeoutMillis: 10000,
++    idleTimeoutMillis: 10000,
++  }));
++}
++
++/** All queries in the callback must use this client, not the shared pool. */
++export async function withTransaction<T>(work: (client: PoolClient) => Promise<T>): Promise<T> {
++  const client = await getDb().connect();
++  try {
++    await client.query('BEGIN');
++    const result = await work(client);
++    await client.query('COMMIT');
++    return result;
++  } catch (error) {
++    await client.query('ROLLBACK');
++    throw error;
++  } finally {
++    client.release();
++  }
++}
+diff --git a/neighbourshare/lib/domain.ts b/neighbourshare/lib/domain.ts
+new file mode 100644
+index 0000000..878e9c2
+--- /dev/null
++++ b/neighbourshare/lib/domain.ts
+@@ -0,0 +1,8 @@
++export const CATEGORIES = ['Tools', 'Garden & Yard', 'Outdoor & Camping', 'Sports & Fitness', 'Electronics', 'Kitchen & Appliances', 'Party & Events', 'Other'] as const;
++export const CONDITIONS = ['New', 'Like new', 'Good', 'Fair'] as const;
++export const REQUEST_STATUSES = ['pending', 'approved', 'rejected', 'cancelled', 'completed'] as const;
++export type Category = (typeof CATEGORIES)[number];
++export type Condition = (typeof CONDITIONS)[number];
++export type RequestStatus = (typeof REQUEST_STATUSES)[number];
++// Read neighborhood options from the neighborhoods table after configuration.
++// Their eight names are still TBD in the authoritative spec.
+diff --git a/neighbourshare/package-lock.json b/neighbourshare/package-lock.json
+index 416d49f..b464ae1 100644
+--- a/neighbourshare/package-lock.json
++++ b/neighbourshare/package-lock.json
+@@ -8,13 +8,18 @@
+       "name": "neighbourshare",
+       "version": "0.1.0",
+       "dependencies": {
++        "bcryptjs": "^3.0.3",
+         "next": "16.4.5",
++        "pg": "^8.23.1",
+         "react": "19.3.0",
+-        "react-dom": "19.3.0"
++        "react-dom": "19.3.0",
++        "server-only": "^0.0.1"
+       },
+       "devDependencies": {
++        "@electric-sql/pglite": "^0.5.16",
+         "@tailwindcss/turbopack": "^4",
+         "@types/node": "^20",
++        "@types/pg": "^8.23.1",
+         "@types/react": "^19",
+         "@types/react-dom": "^19",
+         "eslint": "^9",
+@@ -23,6 +28,9 @@
+         "prettier": "^3.9.10",
+         "tailwindcss": "^4",
+         "typescript": "^5"
++      },
++      "engines": {
++        "node": ">=20.12.0"
+       }
+     },
+     "node_modules/@alloc/quick-lru": {
+@@ -278,6 +286,13 @@
+         "node": ">=6.9.0"
+       }
+     },
++    "node_modules/@electric-sql/pglite": {
++      "version": "0.5.16",
++      "resolved": "https://registry.npmjs.org/@electric-sql/pglite/-/pglite-0.5.16.tgz",
++      "integrity": "sha512-Nj8KcIsJL748W408U2N8q4+9IlONdpRIU8MJypIAAINMJ5nqKyqpX7Mgg/5XKkXiAib3AoZGR6hnJFlrlLBrcg==",
++      "dev": true,
++      "license": "Apache-2.0"
++    },
+     "node_modules/@emnapi/runtime": {
+       "version": "1.11.3",
+       "resolved": "https://registry.npmjs.org/@emnapi/runtime/-/runtime-1.11.3.tgz",
+@@ -1729,6 +1744,18 @@
+         "undici-types": "~6.21.0"
+       }
+     },
++    "node_modules/@types/pg": {
++      "version": "8.23.1",
++      "resolved": "https://registry.npmjs.org/@types/pg/-/pg-8.23.1.tgz",
++      "integrity": "sha512-fKVHpikPdg4GKks3JuLEhvwSyvwzF23hnabPy6DD8ljVbC7+6J5dQzdv4arV6jqq57djnMgs1HKBxX4P8aBI3A==",
++      "dev": true,
++      "license": "MIT",
++      "dependencies": {
++        "@types/node": "*",
++        "pg-protocol": "*",
++        "pg-types": "^2.2.0"
++      }
++    },
+     "node_modules/@types/react": {
+       "version": "19.3.0",
+       "resolved": "https://registry.npmjs.org/@types/react/-/react-19.3.0.tgz",
+@@ -2673,6 +2700,15 @@
+         "node": ">=6.0.0"
+       }
+     },
++    "node_modules/bcryptjs": {
++      "version": "3.0.3",
++      "resolved": "https://registry.npmjs.org/bcryptjs/-/bcryptjs-3.0.3.tgz",
++      "integrity": "sha512-GlF5wPWnSa/X5LKM1o0wz0suXIINz1iHRLvTS+sLyi7XPbe5ycmYI3DlZqVGZZtDgl4DmasFg7gOB3JYbphV5g==",
++      "license": "BSD-3-Clause",
++      "bin": {
++        "bcrypt": "bin/bcrypt"
++      }
++    },
+     "node_modules/brace-expansion": {
+       "version": "1.1.21",
+       "resolved": "https://registry.npmjs.org/brace-expansion/-/brace-expansion-1.1.21.tgz",
+@@ -5583,6 +5619,95 @@
+       "dev": true,
+       "license": "MIT"
+     },
++    "node_modules/pg": {
++      "version": "8.23.1",
++      "resolved": "https://registry.npmjs.org/pg/-/pg-8.23.1.tgz",
++      "integrity": "sha512-aL96AHANtWjPLDOLqnhx+ngp9+UK7ETEU8VJrDCGvsSSi/mGLcWYsS6Herg7lmaBJe4uwrfqsa7gTEFaSizDoQ==",
++      "license": "MIT",
++      "dependencies": {
++        "pg-connection-string": "^2.14.1",
++        "pg-pool": "^3.14.0",
++        "pg-protocol": "^1.16.1",
++        "pg-types": "2.2.0",
++        "pgpass": "1.0.5"
++      },
++      "engines": {
++        "node": ">= 16.0.0"
++      },
++      "optionalDependencies": {
++        "pg-cloudflare": "^1.4.1"
++      },
++      "peerDependencies": {
++        "pg-native": ">=3.0.1"
++      },
++      "peerDependenciesMeta": {
++        "pg-native": {
++          "optional": true
++        }
++      }
++    },
++    "node_modules/pg-cloudflare": {
++      "version": "1.4.1",
++      "resolved": "https://registry.npmjs.org/pg-cloudflare/-/pg-cloudflare-1.4.1.tgz",
++      "integrity": "sha512-6PQbsFWZcp9EmJEwy5cGQ2La+AMWpP46lgbb8X+U/XsHIUweYDNCpeuKck5RxL2MdVFi7krbbEi5nX4Zh7JhrQ==",
++      "license": "MIT",
++      "optional": true
++    },
++    "node_modules/pg-connection-string": {
++      "version": "2.14.1",
++      "resolved": "https://registry.npmjs.org/pg-connection-string/-/pg-connection-string-2.14.1.tgz",
++      "integrity": "sha512-qR3kGNPBLpCNtz0evbKA0Y/MRFXwSSdT+pTJvYp/bXTcReZbvX1kzF0IyTc1QnxqF7AZbOeBhNL8R5mYQZV/MA==",
++      "license": "MIT"
++    },
++    "node_modules/pg-int8": {
++      "version": "1.0.1",
++      "resolved": "https://registry.npmjs.org/pg-int8/-/pg-int8-1.0.1.tgz",
++      "integrity": "sha512-WCtabS6t3c8SkpDBUlb1kjOs7l66xsGdKpIPZsg4wR+B3+u9UAum2odSsF9tnvxg80h4ZxLWMy4pRjOsFIqQpw==",
++      "license": "ISC",
++      "engines": {
++        "node": ">=4.0.0"
++      }
++    },
++    "node_modules/pg-pool": {
++      "version": "3.14.0",
++      "resolved": "https://registry.npmjs.org/pg-pool/-/pg-pool-3.14.0.tgz",
++      "integrity": "sha512-gKtPkFdQPU3DksooVLi9LsjZxrsBUZIpa+7aVx+LV5pNh0KzP4Zleud2po+ConrxbuXGBJ6Hfer6hdgpIBpBaw==",
++      "license": "MIT",
++      "peerDependencies": {
++        "pg": ">=8.0"
++      }
++    },
++    "node_modules/pg-protocol": {
++      "version": "1.16.1",
++      "resolved": "https://registry.npmjs.org/pg-protocol/-/pg-protocol-1.16.1.tgz",
++      "integrity": "sha512-p9VOFMiHB/ZbJATetbg+99PxssTVSQRnyuPSQ67mN1+1KBOjZaZ83ZQzltnxPhJwSsC3nwVjJ10DVJlerbFzLg==",
++      "license": "MIT"
++    },
++    "node_modules/pg-types": {
++      "version": "2.2.0",
++      "resolved": "https://registry.npmjs.org/pg-types/-/pg-types-2.2.0.tgz",
++      "integrity": "sha512-qTAAlrEsl8s4OiEQY69wDvcMIdQN6wdz5ojQiOy6YRMuynxenON0O5oCpJI6lshc6scgAY8qvJ2On/p+CXY0GA==",
++      "license": "MIT",
++      "dependencies": {
++        "pg-int8": "1.0.1",
++        "postgres-array": "~2.0.0",
++        "postgres-bytea": "~1.0.0",
++        "postgres-date": "~1.0.4",
++        "postgres-interval": "^1.1.0"
++      },
++      "engines": {
++        "node": ">=4"
++      }
++    },
++    "node_modules/pgpass": {
++      "version": "1.0.5",
++      "resolved": "https://registry.npmjs.org/pgpass/-/pgpass-1.0.5.tgz",
++      "integrity": "sha512-FdW9r/jQZhSeohs1Z3sI1yxFQNFvMcnmfuj4WBMUTxOrAyLMaTcE1aAMBiTlbMNaXvBCQuVi0R7hd8udDSP7ug==",
++      "license": "MIT",
++      "dependencies": {
++        "split2": "^4.1.0"
++      }
++    },
+     "node_modules/picocolors": {
+       "version": "1.1.1",
+       "resolved": "https://registry.npmjs.org/picocolors/-/picocolors-1.1.1.tgz",
+@@ -5640,6 +5765,45 @@
+         "node": "^10 || ^12 || >=14"
+       }
+     },
++    "node_modules/postgres-array": {
++      "version": "2.0.0",
++      "resolved": "https://registry.npmjs.org/postgres-array/-/postgres-array-2.0.0.tgz",
++      "integrity": "sha512-VpZrUqU5A69eQyW2c5CA1jtLecCsN2U/bD6VilrFDWq5+5UIEVO7nazS3TEcHf1zuPYO/sqGvUvW62g86RXZuA==",
++      "license": "MIT",
++      "engines": {
++        "node": ">=4"
++      }
++    },
++    "node_modules/postgres-bytea": {
++      "version": "1.0.1",
++      "resolved": "https://registry.npmjs.org/postgres-bytea/-/postgres-bytea-1.0.1.tgz",
++      "integrity": "sha512-5+5HqXnsZPE65IJZSMkZtURARZelel2oXUEO8rH83VS/hxH5vv1uHquPg5wZs8yMAfdv971IU+kcPUczi7NVBQ==",
++      "license": "MIT",
++      "engines": {
++        "node": ">=0.10.0"
++      }
++    },
++    "node_modules/postgres-date": {
++      "version": "1.0.7",
++      "resolved": "https://registry.npmjs.org/postgres-date/-/postgres-date-1.0.7.tgz",
++      "integrity": "sha512-suDmjLVQg78nMK2UZ454hAG+OAW+HQPZ6n++TNDUX+L0+uUlLywnoxJKDou51Zm+zTCjrCl0Nq6J9C5hP9vK/Q==",
++      "license": "MIT",
++      "engines": {
++        "node": ">=0.10.0"
++      }
++    },
++    "node_modules/postgres-interval": {
++      "version": "1.2.0",
++      "resolved": "https://registry.npmjs.org/postgres-interval/-/postgres-interval-1.2.0.tgz",
++      "integrity": "sha512-9ZhXKM/rw350N1ovuWHbGxnGh/SNJ4cnxHiM0rxE4VN41wsg8P8zWn9hv/buK00RP4WvlOyr/RBDiptyxVbkZQ==",
++      "license": "MIT",
++      "dependencies": {
++        "xtend": "^4.0.0"
++      },
++      "engines": {
++        "node": ">=0.10.0"
++      }
++    },
+     "node_modules/prelude-ls": {
+       "version": "1.2.1",
+       "resolved": "https://registry.npmjs.org/prelude-ls/-/prelude-ls-1.2.1.tgz",
+@@ -5931,6 +6095,12 @@
+         "semver": "bin/semver.js"
+       }
+     },
++    "node_modules/server-only": {
++      "version": "0.0.1",
++      "resolved": "https://registry.npmjs.org/server-only/-/server-only-0.0.1.tgz",
++      "integrity": "sha512-qepMx2JxAa5jjfzxG79yPPq+8BuFToHd1hm7kI+Z4zAq1ftQiP7HcxMhDDItrbtwVeLg/cY2JnKnrcFkmiswNA==",
++      "license": "MIT"
++    },
+     "node_modules/set-function-length": {
+       "version": "1.2.2",
+       "resolved": "https://registry.npmjs.org/set-function-length/-/set-function-length-1.2.2.tgz",
+@@ -6151,6 +6321,15 @@
+         "node": ">=0.10.0"
+       }
+     },
++    "node_modules/split2": {
++      "version": "4.2.0",
++      "resolved": "https://registry.npmjs.org/split2/-/split2-4.2.0.tgz",
++      "integrity": "sha512-UcjcJOWknrNkF6PLX83qcHM6KHgVKNkV62Y8a5uYDVv9ydGQVwAHMKqHdJje1VTWpljG0WYpCDhrCdAOYH4TWg==",
++      "license": "ISC",
++      "engines": {
++        "node": ">= 10.x"
++      }
++    },
+     "node_modules/stable-hash": {
+       "version": "0.0.5",
+       "resolved": "https://registry.npmjs.org/stable-hash/-/stable-hash-0.0.5.tgz",
+@@ -6831,6 +7010,15 @@
+         "node": ">=0.10.0"
+       }
+     },
++    "node_modules/xtend": {
++      "version": "4.0.2",
++      "resolved": "https://registry.npmjs.org/xtend/-/xtend-4.0.2.tgz",
++      "integrity": "sha512-LKYU1iAXJXUgAXn9URjiu+MWhyUXHsvfp7mcuYm9dSUKK0/CjtrUwFAxD82/mCWbtLsGjFIad0wIsod4zrTAEQ==",
++      "license": "MIT",
++      "engines": {
++        "node": ">=0.4"
++      }
++    },
+     "node_modules/yallist": {
+       "version": "3.1.1",
+       "resolved": "https://registry.npmjs.org/yallist/-/yallist-3.1.1.tgz",
+diff --git a/neighbourshare/package.json b/neighbourshare/package.json
+index 9d22835..743b2f0 100644
+--- a/neighbourshare/package.json
++++ b/neighbourshare/package.json
+@@ -6,16 +6,25 @@
+     "dev": "next dev",
+     "build": "next build",
+     "start": "next start",
+-    "lint": "eslint"
++    "lint": "eslint",
++    "db:migrate": "node scripts/migrate.mjs",
++    "db:check": "node scripts/check-db.mjs",
++    "seed": "node scripts/seed.mjs",
++    "test:db": "node --test tests/database.test.mjs"
+   },
+   "dependencies": {
++    "bcryptjs": "^3.0.3",
+     "next": "16.4.5",
++    "pg": "^8.23.1",
+     "react": "19.3.0",
+-    "react-dom": "19.3.0"
++    "react-dom": "19.3.0",
++    "server-only": "^0.0.1"
+   },
+   "devDependencies": {
++    "@electric-sql/pglite": "^0.5.16",
+     "@tailwindcss/turbopack": "^4",
+     "@types/node": "^20",
++    "@types/pg": "^8.23.1",
+     "@types/react": "^19",
+     "@types/react-dom": "^19",
+     "eslint": "^9",
+@@ -24,5 +33,8 @@
+     "prettier": "^3.9.10",
+     "tailwindcss": "^4",
+     "typescript": "^5"
++  },
++  "engines": {
++    "node": ">=20.12.0"
+   }
+ }
+diff --git a/neighbourshare/public/seed-item.svg b/neighbourshare/public/seed-item.svg
+new file mode 100644
+index 0000000..428c7d1
+--- /dev/null
++++ b/neighbourshare/public/seed-item.svg
+@@ -0,0 +1 @@
++<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"><rect width="400" height="300" fill="#f5f5f4"/><text x="200" y="155" text-anchor="middle" fill="#166534" font-family="sans-serif" font-size="24">NeighbourShare demo item</text></svg>
+diff --git a/neighbourshare/scripts/check-db.mjs b/neighbourshare/scripts/check-db.mjs
+new file mode 100644
+index 0000000..bb51fc8
+--- /dev/null
++++ b/neighbourshare/scripts/check-db.mjs
+@@ -0,0 +1,2 @@
++import { run } from './database.mjs';
++await run(async client => { await client.query('SELECT 1'); console.log('Database connection successful.'); });
+diff --git a/neighbourshare/scripts/database.mjs b/neighbourshare/scripts/database.mjs
+new file mode 100644
+index 0000000..48e7db3
+--- /dev/null
++++ b/neighbourshare/scripts/database.mjs
+@@ -0,0 +1,41 @@
++import { existsSync } from 'node:fs';
++import { readFile } from 'node:fs/promises';
++import pg from 'pg';
++
++export function connect() {
++  if (existsSync('.env.local')) process.loadEnvFile('.env.local');
++  if (!process.env.DATABASE_URL) throw new Error('Set DATABASE_URL in .env.local (see .env.example).');
++  return new pg.Client({ connectionString: process.env.DATABASE_URL, connectionTimeoutMillis: 10000 });
++}
++
++export async function migrate(client) {
++  await client.query('BEGIN');
++  try {
++    await client.query("SELECT pg_advisory_xact_lock(430001)");
++    await client.query('CREATE TABLE IF NOT EXISTS schema_migrations (version text PRIMARY KEY, applied_at timestamptz NOT NULL DEFAULT now())');
++    const result = await client.query('SELECT version FROM schema_migrations WHERE version = $1', ['001']);
++    if (!result.rows.length) {
++      await client.query(await readFile(new URL('../db/001-initial.sql', import.meta.url), 'utf8'));
++      await client.query('INSERT INTO schema_migrations(version) VALUES ($1)', ['001']);
++    }
++    await client.query('COMMIT');
++  } catch (error) {
++    await client.query('ROLLBACK');
++    throw error;
++  }
++}
++
++export async function run(action) {
++  let client;
++  try {
++    client = connect();
++    await client.connect();
++    await action(client);
++  } catch (error) {
++    // Do not print driver errors or connection strings: they can contain secrets.
++    console.error(`Database command failed${error.code ? ` (${error.code})` : ''}. Check configuration, connectivity and the README.`);
++    process.exitCode = 1;
++  } finally {
++    if (client) await client.end();
++  }
++}
+diff --git a/neighbourshare/scripts/migrate.mjs b/neighbourshare/scripts/migrate.mjs
+new file mode 100644
+index 0000000..a276709
+--- /dev/null
++++ b/neighbourshare/scripts/migrate.mjs
+@@ -0,0 +1,2 @@
++import { migrate, run } from './database.mjs';
++await run(async client => { await migrate(client); console.log('Database schema is up to date.'); });
+diff --git a/neighbourshare/scripts/seed-data.mjs b/neighbourshare/scripts/seed-data.mjs
+new file mode 100644
+index 0000000..5866c40
+--- /dev/null
++++ b/neighbourshare/scripts/seed-data.mjs
+@@ -0,0 +1,46 @@
++import { hash } from 'bcryptjs';
++
++export function validateNeighborhoods(names) {
++  if (!Array.isArray(names) || names.length !== 8 || names.some(n => typeof n !== 'string' || !n.trim() || n !== n.trim()) || new Set(names.map(n => n.toLowerCase())).size !== 8) {
++    throw new Error('Add exactly eight distinct, agreed neighborhood names to db/neighborhoods.json.');
++  }
++  return names;
++}
++
++export async function seed(client, names, password) {
++  validateNeighborhoods(names);
++  if (typeof password !== 'string' || password.length < 8 || Buffer.byteLength(password) > 72) throw new Error('SEED_PASSWORD must be 8+ characters and at most 72 bytes.');
++  const passwordHash = await hash(password, 12);
++  await client.query('BEGIN');
++  try {
++    await client.query('SELECT pg_advisory_xact_lock(430002)');
++    const existing = await client.query('SELECT name FROM neighborhoods');
++    if (existing.rows.some(row => !names.includes(row.name))) throw new Error('Existing neighborhoods differ; review them before seeding.');
++    for (const name of names) await client.query('INSERT INTO neighborhoods(name) VALUES ($1) ON CONFLICT DO NOTHING', [name]);
++    // Dedicated, deterministic IDs; never overwrite existing users or their data.
++    const users = [];
++    for (let i = 0; i < 3; i++) {
++      const id = `43000000-0000-4000-8000-${String(i + 1).padStart(12, '0')}`;
++      await client.query(`INSERT INTO users(id, name, email, password_hash, neighborhood, bio, email_verified)
++        VALUES ($1, $2, $3, $4, $5, $6, true) ON CONFLICT (id) DO NOTHING`,
++        [id, ['Alex Demo', 'Sione Demo', 'Luthando Demo'][i], `demo${i + 1}@example.com`, passwordHash, names[i], 'Development test account']);
++      users.push(id);
++    }
++    const categories = ['Tools', 'Garden & Yard', 'Outdoor & Camping', 'Sports & Fitness', 'Electronics', 'Kitchen & Appliances', 'Party & Events', 'Other'];
++    for (let i = 0; i < categories.length; i++) {
++      const id = `43000000-0000-4000-8001-${String(i + 1).padStart(12, '0')}`;
++      await client.query(`INSERT INTO listings(id, owner_id, title, description, photo_url, category, condition, neighborhood, available_from, available_to)
++        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,CURRENT_DATE - 60,CURRENT_DATE + 365) ON CONFLICT (id) DO NOTHING`,
++        [id, users[0], ['Cordless drill', 'Garden trimmer', 'Camping tent', 'Tennis racket', 'Projector', 'Stand mixer', 'Folding table', 'Luggage scale'][i], 'Demo item available for neighbors to borrow.', '/seed-item.svg', categories[i], ['New', 'Like new', 'Good', 'Fair'][i % 4], names[i]]);
++    }
++    for (const [i, status] of ['pending', 'approved', 'rejected', 'cancelled', 'completed'].entries()) {
++      await client.query(`INSERT INTO borrow_requests(id,listing_id,borrower_id,start_date,end_date,message,status,rating)
++        VALUES ($1,$2,$3,CURRENT_DATE + $4::integer,CURRENT_DATE + $5::integer,$6,$7,$8) ON CONFLICT (id) DO NOTHING`,
++        [`43000000-0000-4000-8002-${String(i + 1).padStart(12, '0')}`, '43000000-0000-4000-8001-000000000001', users[1 + i % 2], i === 4 ? -10 : 10 + i * 4, i === 4 ? -8 : 11 + i * 4, 'May I borrow this item?', status, i === 4 ? 5 : null]);
++    }
++    await client.query('COMMIT');
++  } catch (error) {
++    await client.query('ROLLBACK');
++    throw error;
++  }
++}
+diff --git a/neighbourshare/scripts/seed.mjs b/neighbourshare/scripts/seed.mjs
+new file mode 100644
+index 0000000..e2eacf4
+--- /dev/null
++++ b/neighbourshare/scripts/seed.mjs
+@@ -0,0 +1,12 @@
++import { readFile } from 'node:fs/promises';
++import { migrate, run } from './database.mjs';
++import { seed, validateNeighborhoods } from './seed-data.mjs';
++
++// Validate the unresolved team choices before contacting or changing a database.
++const names = validateNeighborhoods(JSON.parse(await readFile(new URL('../db/neighborhoods.json', import.meta.url), 'utf8')));
++await run(async client => {
++  if (!process.env.SEED_PASSWORD || process.env.SEED_PASSWORD.length < 8 || Buffer.byteLength(process.env.SEED_PASSWORD) > 72) throw new Error('Set SEED_PASSWORD.');
++  await migrate(client);
++  await seed(client, names, process.env.SEED_PASSWORD);
++  console.log('Demo data loaded. Existing demo records were preserved.');
++});
+diff --git a/neighbourshare/tests/database.test.mjs b/neighbourshare/tests/database.test.mjs
+new file mode 100644
+index 0000000..53eec68
+--- /dev/null
++++ b/neighbourshare/tests/database.test.mjs
+@@ -0,0 +1,51 @@
++import test from 'node:test';
++import assert from 'node:assert/strict';
++import { PGlite } from '@electric-sql/pglite';
++import { compare } from 'bcryptjs';
++import { migrate } from '../scripts/database.mjs';
++import { seed, validateNeighborhoods } from '../scripts/seed-data.mjs';
++import { readFile } from 'node:fs/promises';
++
++// Fictional fixtures, not proposed project neighborhood names.
++const names = Array.from({ length: 8 }, (_, i) => `Test neighborhood ${i + 1}`);
++
++test('schema and seed are repeatable and enforce the issue requirements', async () => {
++  const db = new PGlite();
++  // PGlite needs exec for the migration's multi-statement SQL.
++  const client = { query: (sql, params) => sql.includes('CREATE TABLE neighborhoods') ? db.exec(sql) : db.query(sql, params) };
++  try {
++    await migrate(client);
++    await migrate(client);
++    await seed(client, names, 'TestingOnly123');
++    await seed(client, names, 'TestingOnly123');
++    for (const [table, count] of [['neighborhoods', 8], ['users', 3], ['listings', 8], ['borrow_requests', 5], ['schema_migrations', 1]]) {
++      assert.equal((await db.query(`SELECT count(*)::int AS count FROM ${table}`)).rows[0].count, count);
++    }
++    const user = (await db.query('SELECT * FROM users ORDER BY id LIMIT 1')).rows[0];
++    assert.ok(await compare('TestingOnly123', user.password_hash));
++    assert.notEqual(user.password_hash, 'TestingOnly123');
++    const requestId = '43000000-0000-4000-8002-000000000001';
++    for (const rating of [null, 1, 2, 3, 4, 5]) await db.query('UPDATE borrow_requests SET rating=$1 WHERE id=$2', [rating, requestId]);
++    for (const rating of [0, 6, -1]) await assert.rejects(db.query('UPDATE borrow_requests SET rating=$1 WHERE id=$2', [rating, requestId]), { code: '23514' });
++    await assert.rejects(db.query("UPDATE borrow_requests SET status='expired'"), { code: '23514' });
++    await assert.rejects(db.query("UPDATE listings SET category='Unknown'"), { code: '23514' });
++    await assert.rejects(db.query("UPDATE listings SET condition='Broken'"), { code: '23514' });
++    await assert.rejects(db.query("UPDATE listings SET available_to=available_from-1"), { code: '23514' });
++    await assert.rejects(db.query("UPDATE borrow_requests SET end_date=start_date-1"), { code: '23514' });
++    await assert.rejects(db.query("UPDATE users SET neighborhood='Unknown'"), { code: '23503' });
++    await assert.rejects(db.query("UPDATE users SET email=' DEMO1@EXAMPLE.COM ' WHERE email='demo2@example.com'"), { code: '23505' });
++    await assert.rejects(db.query('DELETE FROM users WHERE id=$1', [user.id]), { code: '23001' });
++    const statuses = (await db.query('SELECT DISTINCT status FROM borrow_requests')).rows.map(r => r.status).sort();
++    assert.deepEqual(statuses, ['approved', 'cancelled', 'completed', 'pending', 'rejected']);
++    // SQL domain options and the TypeScript options must remain synchronized.
++    const domain = await readFile(new URL('../lib/domain.ts', import.meta.url), 'utf8');
++    const categories = (await db.query('SELECT DISTINCT category FROM listings')).rows.map(r => r.category);
++    for (const category of categories) assert.ok(domain.includes(`'${category}'`));
++  } finally { await db.close(); }
++});
++
++test('unresolved neighborhood names cannot silently become real data', () => {
++  assert.throws(() => validateNeighborhoods([]), /exactly eight/);
++  assert.throws(() => validateNeighborhoods(Array(8).fill('Duplicate')), /exactly eight/);
++  assert.deepEqual(validateNeighborhoods(names), names);
++});
+-- 
+2.52.0
+
