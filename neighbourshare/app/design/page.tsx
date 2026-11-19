@@ -1,3 +1,9 @@
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { REQUEST_STATUSES } from "@/lib/domain";
+
 // Colors come from the CSS variables in app/globals.css, so this page always
 // shows the current palette for both light and dark mode.
 const palette = [
@@ -23,14 +29,6 @@ const palette = [
   { name: "Border", token: "--border", use: "Card borders & dividers" },
 ];
 
-const statuses = [
-  { name: "Pending", token: "--warning" },
-  { name: "Approved", token: "--primary" },
-  { name: "Rejected", token: "--error" },
-  { name: "Cancelled", token: "--muted" },
-  { name: "Completed", token: "--info" },
-];
-
 export default function DesignPage() {
   return (
     <main className="min-h-screen bg-background px-4 py-12 text-foreground">
@@ -39,7 +37,8 @@ export default function DesignPage() {
           NeighbourShare Design System
         </h1>
         <p className="mb-12 text-muted">
-          Color palette. Switch your system to dark mode to see the dark colors.
+          Colors and shared components. Switch your system to dark mode to see
+          the dark colors.
         </p>
 
         <h2 className="mb-6 text-2xl font-semibold">Palette</h2>
@@ -62,18 +61,47 @@ export default function DesignPage() {
           ))}
         </div>
 
-        <h2 className="mb-6 text-2xl font-semibold">Request status colors</h2>
+        <h2 className="mb-6 text-2xl font-semibold">Buttons</h2>
+        <div className="mb-12 flex flex-wrap gap-3">
+          <Button>Primary</Button>
+          <Button variant="secondary">Secondary</Button>
+          <Button disabled>Disabled</Button>
+          <Button variant="secondary" disabled>
+            Disabled secondary
+          </Button>
+        </div>
+
+        <h2 className="mb-6 text-2xl font-semibold">Inputs</h2>
+        <div className="mb-12 grid max-w-md gap-6">
+          <Input label="Title" name="title" placeholder="Cordless drill" />
+          <Input
+            label="Password"
+            name="password"
+            type="password"
+            hint="At least 8 characters"
+          />
+          <Input
+            label="Email"
+            name="email"
+            type="email"
+            defaultValue="not-an-email"
+            error="Enter a valid email address"
+          />
+        </div>
+
+        <h2 className="mb-6 text-2xl font-semibold">Card</h2>
+        <div className="mb-12 grid max-w-sm">
+          <Card image={{ src: "/seed-item.svg", alt: "Cordless drill" }}>
+            <h3 className="text-lg font-semibold">Cordless drill</h3>
+            <p className="text-sm text-muted">Tools · Good · Lynnwood</p>
+          </Card>
+        </div>
+
+        <h2 className="mb-6 text-2xl font-semibold">Status badges</h2>
         <ul className="flex flex-wrap gap-3">
-          {statuses.map((s) => (
-            <li
-              key={s.name}
-              className="rounded-full border-2 bg-surface px-3 py-1 text-sm font-medium"
-              style={{
-                borderColor: `var(${s.token})`,
-                color: `var(${s.token})`,
-              }}
-            >
-              {s.name} · {s.token}
+          {REQUEST_STATUSES.map((status) => (
+            <li key={status}>
+              <StatusBadge status={status} />
             </li>
           ))}
         </ul>
