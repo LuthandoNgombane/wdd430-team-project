@@ -1,7 +1,9 @@
 import "server-only";
+import { headers } from "next/headers";
 
 /**
  * Returns the signed-in member's id, or null when nobody is signed in.
+ * Route handlers pass their request; pages call it without arguments.
  *
  * TEMPORARY until sign-in (#14) is merged. Then replace the body with the
  * Auth.js session, for example:
@@ -15,11 +17,13 @@ import "server-only";
  * pretend to be another member on the live site.
  */
 export async function getCurrentUserId(
-  request: Request,
+  request?: Request,
 ): Promise<string | null> {
+  // Read the request first, so pages that call this always render per request.
+  const requestHeaders = request?.headers ?? (await headers());
   if (process.env.NODE_ENV === "production") return null;
   const id = (
-    request.headers.get("x-dev-user-id") ||
+    requestHeaders.get("x-dev-user-id") ||
     process.env.DEV_USER_ID ||
     ""
   )
@@ -31,4 +35,12 @@ export async function getCurrentUserId(
   )
     ? id
     : null;
+}
+
+/**
+ * Where to send signed-out visitors. Auth.js serves this route and forwards
+ * to the custom sign-in page from #14, then back to `returnTo`.
+ */
+export function signInPath(returnTo: string): string {
+  return `/api/auth/signin?callbackUrl=${encodeURIComponent(returnTo)}`;
 }

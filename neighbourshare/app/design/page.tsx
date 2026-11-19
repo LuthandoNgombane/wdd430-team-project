@@ -1,8 +1,10 @@
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { REQUEST_STATUSES } from "@/lib/domain";
+import { Textarea } from "@/components/ui/textarea";
+import { CATEGORIES, REQUEST_STATUSES } from "@/lib/domain";
 
 // Colors come from the CSS variables in app/globals.css, so this page always
 // shows the current palette for both light and dark mode.
@@ -86,6 +88,18 @@ export default function DesignPage() {
             type="email"
             defaultValue="not-an-email"
             error="Enter a valid email address"
+          />
+          <Select
+            label="Category"
+            name="category"
+            options={CATEGORIES}
+            placeholder="Choose a category"
+            defaultValue=""
+          />
+          <Textarea
+            label="Description"
+            name="description"
+            hint="What it is and anything a borrower should know"
           />
         </div>
 
