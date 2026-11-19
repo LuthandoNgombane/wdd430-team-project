@@ -55,8 +55,9 @@ export function isIsoDate(value: string): boolean {
 
 // Photos are uploaded to Vercel Blob (#19). next/image refuses hosts that are
 // not set up in next.config.ts, so a photo from any other site would break
-// the pages that show it. Keep this host in sync with images.remotePatterns.
-const PHOTO_HOST_SUFFIX = ".public.blob.vercel-storage.com";
+// the pages that show it. Keep this host in sync with images.remotePatterns
+// in next.config.ts, where "*" matches exactly one subdomain (the store id).
+const PHOTO_HOST = /^[a-z0-9-]+\.public\.blob\.vercel-storage\.com$/;
 
 /** A file in /public (like the seed photo) or an https Vercel Blob URL. */
 export function isAllowedPhotoUrl(value: string): boolean {
@@ -68,7 +69,7 @@ export function isAllowedPhotoUrl(value: string): boolean {
     const url = new URL(value);
     return (
       url.protocol === "https:" &&
-      url.hostname.endsWith(PHOTO_HOST_SUFFIX) &&
+      PHOTO_HOST.test(url.hostname) &&
       !url.username &&
       !url.password
     );
@@ -110,11 +111,13 @@ export function validateListing(
     errors.photoUrl = "The photo address is not valid.";
 
   const category = text(input, "category");
-  if (!(CATEGORIES as readonly string[]).includes(category))
+  if (!category) errors.category = "Choose a category.";
+  else if (!(CATEGORIES as readonly string[]).includes(category))
     errors.category = "Choose a category from the list.";
 
   const condition = text(input, "condition");
-  if (!(CONDITIONS as readonly string[]).includes(condition))
+  if (!condition) errors.condition = "Choose a condition.";
+  else if (!(CONDITIONS as readonly string[]).includes(condition))
     errors.condition = "Choose a condition from the list.";
 
   const neighborhood = text(input, "neighborhood");

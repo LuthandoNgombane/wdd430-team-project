@@ -4,6 +4,7 @@ import { PGlite } from '@electric-sql/pglite';
 import { migrate } from '../scripts/database.mjs';
 import { seed } from '../scripts/seed-data.mjs';
 import { validateListing, isIsoDate } from '../lib/listings/validate.ts';
+import { checkPhotoFile, sniffPhotoType, PHOTO_MAX_BYTES } from '../lib/listings/photo.ts';
 import {
   createListing,
   deleteListing,
@@ -74,6 +75,7 @@ test('validateListing', async (t) => {
       'http://abc.public.blob.vercel-storage.com/a.jpg', // not https
       'https://example.com/a.jpg', // host not set up for next/image
       'https://public.blob.vercel-storage.com.evil.com/a.jpg',
+      'https://a.b.public.blob.vercel-storage.com/a.jpg', // next/image only allows one subdomain
       'https://user:pw@abc.public.blob.vercel-storage.com/a.jpg',
       '//example.com/a.jpg', '/../secret', '/a.jpg?x=1', '/a b.jpg',
     ])
@@ -84,6 +86,30 @@ test('validateListing', async (t) => {
 
   await t.test('limits title length', () => {
     assert.ok(validateListing({ ...valid, title: 'x'.repeat(101) }, names).errors.title);
+  });
+});
+
+test('photo files', async (t) => {
+  await t.test('accepts JPEG, PNG and WebP up to 5 MB', () => {
+    for (const type of ['image/jpeg', 'image/png', 'image/webp'])
+      assert.equal(checkPhotoFile({ type, size: PHOTO_MAX_BYTES }), null, type);
+  });
+
+  await t.test('rejects other types, empty files and files over 5 MB', () => {
+    assert.match(checkPhotoFile({ type: 'image/gif', size: 10 }), /JPEG, PNG or WebP/);
+    assert.match(checkPhotoFile({ type: 'image/svg+xml', size: 10 }), /JPEG, PNG or WebP/);
+    assert.match(checkPhotoFile({ type: 'image/png', size: 0 }), /empty/);
+    assert.match(checkPhotoFile({ type: 'image/png', size: PHOTO_MAX_BYTES + 1 }), /5 MB/);
+  });
+
+  await t.test('detects the real type from the first bytes', () => {
+    const bytes = (...b) => new Uint8Array(b);
+    assert.equal(sniffPhotoType(bytes(0xff, 0xd8, 0xff, 0xe0)), 'image/jpeg');
+    assert.equal(sniffPhotoType(bytes(0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a)), 'image/png');
+    assert.equal(sniffPhotoType(new TextEncoder().encode('RIFF\0\0\0\0WEBPVP8 ')), 'image/webp');
+    assert.equal(sniffPhotoType(new TextEncoder().encode('RIFF\0\0\0\0WAVEfmt ')), null);
+    assert.equal(sniffPhotoType(new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg">')), null);
+    assert.equal(sniffPhotoType(bytes(0xff, 0xd8)), null);
   });
 });
 
