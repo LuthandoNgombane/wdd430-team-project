@@ -1,26 +1,103 @@
 @import "tailwindcss";
 
+/*
+ * NeighbourShare color settings (issue #15).
+ * Every page and component reads colors from these variables, never hex values.
+ * Light and dark mode follow the operating system setting.
+ *
+ * Accent is a fill color only (badges, highlights): in light mode it is too
+ * light to use as text on the page, so put --on-accent text on top of it.
+ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+  color-scheme: light dark;
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --background: #fafaf9;
+  --surface: #ffffff;
+  --foreground: #1c1917;
+  --muted: #57534e;
+  --primary: #166534;
+  --on-primary: #ffffff;
+  --primary-hover: #14532d;
+  --accent: #f59e0b;
+  --on-accent: #1c1917;
+  --error: #b91c1c;
+  --warning: #b45309;
+  --info: #1d4ed8;
+  --focus: #1d4ed8;
+  --input-border: #78716c;
+  /* Decorative borders (cards, dividers). Use --input-border for form fields. */
+  --border: #e7e5e4;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #1c1917;
+    --surface: #292524;
+    --foreground: #f5f5f4;
+    --muted: #a8a29e;
+    --primary: #4ade80;
+    --on-primary: #052e16;
+    --primary-hover: #86efac;
+    --accent: #fbbf24;
+    --on-accent: #1c1917;
+    --error: #f87171;
+    --warning: #fbbf24;
+    --info: #93c5fd;
+    --focus: #93c5fd;
+    --input-border: #78716c;
+    --border: #44403c;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* Tailwind classes: bg-surface, text-muted, border-input-border, bg-primary, ... */
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-primary: var(--primary);
+  --color-on-primary: var(--on-primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-accent: var(--accent);
+  --color-on-accent: var(--on-accent);
+  --color-error: var(--error);
+  --color-warning: var(--warning);
+  --color-info: var(--info);
+  --color-focus: var(--focus);
+  --color-input-border: var(--input-border);
+  --color-border: var(--border);
+
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@layer base {
+  html {
+    font-size: 100%; /* 16px, and still respects the browser's font size setting */
+  }
+
+  body {
+    background: var(--background);
+    color: var(--foreground);
+    line-height: 1.5;
+  }
+
+  /* Visible focus ring for keyboard users on every interactive element. */
+  :focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+  }
+}
+
+/*
+ * Kept outside @layer on purpose: Tailwind's text-* classes (text-2xl, text-lg...)
+ * also set a line height, and they would win over a rule inside @layer base.
+ */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  line-height: 1.2;
 }

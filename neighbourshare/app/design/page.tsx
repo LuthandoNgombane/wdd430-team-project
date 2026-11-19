@@ -1,54 +1,82 @@
+// Colors come from the CSS variables in app/globals.css, so this page always
+// shows the current palette for both light and dark mode.
 const palette = [
-  { name: "Primary", hex: "#2F6B4F", use: "Buttons, links, brand" },
-  { name: "Primary hover", hex: "#24543E", use: "Hover & pressed states" },
-  { name: "Accent", hex: "#C2410C", use: "Key calls to action" },
-  { name: "Text", hex: "#1F2937", use: "Headings & body" },
-  { name: "Muted text", hex: "#5B6472", use: "Labels & captions" },
-  { name: "Page background", hex: "#FAF8F3", use: "Page background" },
-  { name: "Surface", hex: "#FFFFFF", use: "Cards & forms" },
-  { name: "Border", hex: "#E5E1D8", use: "Borders & dividers" },
+  { name: "Page background", token: "--background", use: "Page background" },
+  { name: "Surface", token: "--surface", use: "Cards & forms" },
+  { name: "Text", token: "--foreground", use: "Headings & body" },
+  { name: "Muted text", token: "--muted", use: "Labels & captions" },
+  { name: "Primary", token: "--primary", use: "Buttons, links, brand" },
+  {
+    name: "Primary hover",
+    token: "--primary-hover",
+    use: "Hover & pressed states",
+  },
+  {
+    name: "Accent",
+    token: "--accent",
+    use: "Highlights (fill only, not text)",
+  },
+  { name: "Error", token: "--error", use: "Errors & rejected" },
+  { name: "Warning", token: "--warning", use: "Warnings & pending" },
+  { name: "Info / focus", token: "--info", use: "Focus ring & info" },
+  { name: "Input border", token: "--input-border", use: "Form field borders" },
+  { name: "Border", token: "--border", use: "Card borders & dividers" },
 ];
 
 const statuses = [
-  { name: "Pending", hex: "#A16207" },
-  { name: "Approved", hex: "#15803D" },
-  { name: "Rejected", hex: "#B91C1C" },
-  { name: "Cancelled", hex: "#5B6472" },
-  { name: "Expired", hex: "#5B6472" },
-  { name: "Completed", hex: "#1D4ED8" },
+  { name: "Pending", token: "--warning" },
+  { name: "Approved", token: "--primary" },
+  { name: "Rejected", token: "--error" },
+  { name: "Cancelled", token: "--muted" },
+  { name: "Completed", token: "--info" },
 ];
 
 export default function DesignPage() {
   return (
-    <main style={{ background: "#FAF8F3", color: "#1F2937", minHeight: "100vh", padding: "48px 16px" }}>
-      <div style={{ maxWidth: 1200, margin: "0 auto" }}>
-        <h1 style={{ fontSize: "2rem", fontWeight: 700, color: "#2F6B4F", marginBottom: 8 }}>
+    <main className="min-h-screen bg-background px-4 py-12 text-foreground">
+      <div className="mx-auto max-w-6xl">
+        <h1 className="mb-2 text-3xl font-bold text-primary">
           NeighbourShare Design System
         </h1>
-        <p style={{ color: "#5B6472", marginBottom: 48 }}>Design system: color palette</p>
+        <p className="mb-12 text-muted">
+          Color palette. Switch your system to dark mode to see the dark colors.
+        </p>
 
-        <h2 style={{ fontSize: "1.5rem", fontWeight: 600, marginBottom: 24 }}>Palette</h2>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 24, marginBottom: 48 }}>
+        <h2 className="mb-6 text-2xl font-semibold">Palette</h2>
+        <div className="mb-12 grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-6">
           {palette.map((c) => (
-            <div key={c.name} style={{ background: "#FFFFFF", border: "1px solid #E5E1D8", borderRadius: 8, overflow: "hidden", boxShadow: "0 1px 3px rgba(0,0,0,0.08)" }}>
-              <div style={{ background: c.hex, height: 96, borderBottom: "1px solid #E5E1D8" }} />
-              <div style={{ padding: 16 }}>
-                <h3 style={{ fontSize: "1.125rem", fontWeight: 600 }}>{c.name}</h3>
-                <p style={{ fontFamily: "monospace", fontSize: "0.875rem" }}>{c.hex}</p>
-                <p style={{ color: "#5B6472", fontSize: "0.875rem" }}>{c.use}</p>
+            <div
+              key={c.name}
+              className="overflow-hidden rounded-lg border border-border bg-surface shadow-sm"
+            >
+              <div
+                className="h-24 border-b border-border"
+                style={{ background: `var(${c.token})` }}
+              />
+              <div className="p-4">
+                <h3 className="text-lg font-semibold">{c.name}</h3>
+                <p className="font-mono text-sm">{c.token}</p>
+                <p className="text-sm text-muted">{c.use}</p>
               </div>
             </div>
           ))}
         </div>
 
-        <h2 style={{ fontSize: "1.5rem", fontWeight: 600, marginBottom: 24 }}>Request status badges</h2>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
+        <h2 className="mb-6 text-2xl font-semibold">Request status colors</h2>
+        <ul className="flex flex-wrap gap-3">
           {statuses.map((s) => (
-            <span key={s.name} style={{ background: s.hex, color: "#FFFFFF", padding: "4px 12px", borderRadius: 999, fontSize: "0.875rem", fontWeight: 500 }}>
-              {s.name} · {s.hex}
-            </span>
+            <li
+              key={s.name}
+              className="rounded-full border-2 bg-surface px-3 py-1 text-sm font-medium"
+              style={{
+                borderColor: `var(${s.token})`,
+                color: `var(${s.token})`,
+              }}
+            >
+              {s.name} · {s.token}
+            </li>
           ))}
-        </div>
+        </ul>
       </div>
     </main>
   );
