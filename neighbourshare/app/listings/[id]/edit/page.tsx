@@ -14,13 +14,13 @@ export default function EditListingPage({
   params,
 }: PageProps<"/listings/[id]/edit">) {
   return (
-    <main className="mx-auto w-full max-w-2xl px-4 py-12">
+    <div className="mx-auto w-full max-w-2xl">
       <h1 className="mb-8 text-3xl font-bold">Edit listing</h1>
       {/* Reads the listing and the signed-in member, so it loads after the page shell. */}
       <Suspense fallback={<p className="text-muted">Loading the listing…</p>}>
         <EditListing params={params} />
       </Suspense>
-    </main>
+    </div>
   );
 }
 
