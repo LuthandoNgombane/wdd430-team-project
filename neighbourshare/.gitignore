@@ -42,3 +42,6 @@ next-env.d.ts
 
 # Commit the template, never local credentials
 !.env.example
+
+# listing photos saved locally in development (see app/api/uploads)
+/public/uploads/
