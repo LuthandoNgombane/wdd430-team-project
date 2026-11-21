@@ -11,7 +11,7 @@ export const metadata: Metadata = { title: "Add a listing" };
 
 export default function NewListingPage() {
   return (
-    <main className="mx-auto w-full max-w-2xl px-4 py-12">
+    <div className="mx-auto w-full max-w-2xl">
       <h1 className="mb-2 text-3xl font-bold">Add a listing</h1>
       <p className="mb-8 text-muted">
         Share an item with your neighbors. All fields are required.
@@ -20,7 +20,7 @@ export default function NewListingPage() {
       <Suspense fallback={<p className="text-muted">Loading the form…</p>}>
         <NewListing />
       </Suspense>
-    </main>
+    </div>
   );
 }
 
