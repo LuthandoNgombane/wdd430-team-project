@@ -3,14 +3,14 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useRef, useState } from "react";
-import Container from "./container";
+import { Container } from "./container";
 
 const NAV_LINKS = [
   { href: "/listings", label: "Browse" },
   { href: "/dashboard", label: "Dashboard" },
 ];
 
-export default function Header({ isSignedIn = false }: { isSignedIn?: boolean }) {
+export function Header({ isSignedIn = false }: { isSignedIn?: boolean }) {
   const [open, setOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const pathname = usePathname();

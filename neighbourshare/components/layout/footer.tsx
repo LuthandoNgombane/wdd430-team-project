@@ -1,6 +1,6 @@
-import Container from "./container";
+import { Container } from "./container";
 
-export default function Footer() {
+export function Footer() {
   return (
     <footer className="mt-16 border-t border-border bg-surface">
       <Container className="py-8 text-sm text-muted">

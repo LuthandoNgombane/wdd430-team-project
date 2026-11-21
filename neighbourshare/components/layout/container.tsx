@@ -1,4 +1,4 @@
-export default function Container({
+export function Container({
   children,
   className = "",
 }: {
