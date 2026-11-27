@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { Suspense } from 'react';
 import SignInForm from './SignInForm';
 
-export const metadata: Metadata = { title: 'Sign in | NeighbourShare' };
+export const metadata: Metadata = { title: 'Sign in' };
 
 type SearchParams = Promise<{ callbackUrl?: string | string[]; registered?: string | string[] }>;
 
@@ -16,7 +16,6 @@ async function SignInContent({ searchParams }: { searchParams: SearchParams }) {
     const url = new URL(callbackUrl, 'http://placeholder');
     redirectTo = url.pathname + url.search;
   } catch {
-    // Not a valid URL: keep the /dashboard default.
   }
 
   return (

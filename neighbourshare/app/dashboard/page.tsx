@@ -4,7 +4,7 @@ import { connection } from 'next/server';
 import { Suspense } from 'react';
 import { auth } from '@/auth';
 
-export const metadata: Metadata = { title: 'Dashboard | NeighbourShare' };
+export const metadata: Metadata = { title: 'Dashboard' };
 
 async function DashboardContent() {
   await connection(); 

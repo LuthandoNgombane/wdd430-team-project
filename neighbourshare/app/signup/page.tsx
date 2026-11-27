@@ -4,7 +4,7 @@ import { Suspense } from 'react';
 import { getNeighborhoods } from '@/lib/users';
 import SignUpForm from './SignUpForm';
 
-export const metadata: Metadata = { title: 'Sign up | NeighbourShare' };
+export const metadata: Metadata = { title: 'Sign up' };
 
 async function SignUpFormWithNeighborhoods() {
   const neighborhoods = await getNeighborhoods();
