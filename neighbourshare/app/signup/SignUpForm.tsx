@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useRef, useState, type FormEvent } from 'react';
+import { useLayoutEffect, useRef, useState, type FormEvent } from 'react';
 import type { FieldErrors, SignUpField } from '@/lib/validation';
 
 const FIELD_ORDER: SignUpField[] = ['name', 'email', 'password', 'neighborhood'];
@@ -34,6 +34,23 @@ export default function SignUpForm({ neighborhoods }: { neighborhoods: string[] 
   const [emailTaken, setEmailTaken] = useState(false);
   const [formError, setFormError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  // With Cache Components, Next.js keeps this page mounted but hidden after
+  // you navigate away (React <Activity>), and shows it again as it was. Each
+  // visit to sign-up should start fresh: without this, coming back after
+  // creating an account showed the previous details (password included) and
+  // a stuck "Creating account…" button. The cleanup runs when the page is
+  // hidden. See node_modules/next/dist/docs/01-app/02-guides/preserving-ui-state.md
+  useLayoutEffect(() => {
+    const form = formRef.current;
+    return () => {
+      form?.reset();
+      setErrors({});
+      setEmailTaken(false);
+      setFormError('');
+      setSubmitting(false);
+    };
+  }, []);
 
   // Move keyboard focus to the first field with a problem.
   function focusFirstError(fieldErrors: FieldErrors) {
