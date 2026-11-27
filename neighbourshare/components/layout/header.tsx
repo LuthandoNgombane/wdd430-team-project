@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useRef, useState } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { Container } from "./container";
 
 const NAV_LINKS = [
@@ -10,16 +10,21 @@ const NAV_LINKS = [
   { href: "/dashboard", label: "Dashboard" },
 ];
 
-export function Header({ isSignedIn = false }: { isSignedIn?: boolean }) {
+type HeaderProps = {
+  accountLinks: ReactNode;
+};
+
+export function Header({ accountLinks }: HeaderProps) {
   const [open, setOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const pathname = usePathname();
 
-  // Placeholder
-  const authLink = isSignedIn
-    ? { href: "/api/auth/signout", label: "Sign out" }
-    : { href: "/signin", label: "Sign in" };
-  const links = [...NAV_LINKS, authLink];
+  // Close the mobile menu whenever the page changes 
+  const [lastPath, setLastPath] = useState(pathname);
+  if (pathname !== lastPath) {
+    setLastPath(pathname);
+    setOpen(false);
+  }
 
   const isActive = (href: string) =>
     pathname === href || pathname.startsWith(`${href}/`);
@@ -41,22 +46,25 @@ export function Header({ isSignedIn = false }: { isSignedIn?: boolean }) {
           NeighbourShare
         </Link>
 
-        {/* Desktop navigation */}
-        <nav aria-label="Main" className="hidden md:block">
-          <ul className="flex items-center gap-6">
-            {links.map((link) => (
-              <li key={link.href}>
-                <Link
-                  href={link.href}
-                  aria-current={isActive(link.href) ? "page" : undefined}
-                  className="inline-flex min-h-11 items-center font-semibold text-foreground underline-offset-4 hover:text-primary-hover aria-[current=page]:text-primary aria-[current=page]:underline"
-                >
-                  {link.label}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </nav>
+        {/* Desktop navigation and account links */}
+        <div className="hidden items-center gap-6 md:flex">
+          <nav aria-label="Main">
+            <ul className="flex items-center gap-6">
+              {NAV_LINKS.map((link) => (
+                <li key={link.href}>
+                  <Link
+                    href={link.href}
+                    aria-current={isActive(link.href) ? "page" : undefined}
+                    className="inline-flex min-h-11 items-center font-semibold text-foreground underline-offset-4 hover:text-primary-hover aria-[current=page]:text-primary aria-[current=page]:underline"
+                  >
+                    {link.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </nav>
+          <div className="flex items-center gap-4">{accountLinks}</div>
+        </div>
 
         {/* Mobile menu button */}
         <button
@@ -87,30 +95,34 @@ export function Header({ isSignedIn = false }: { isSignedIn?: boolean }) {
         </button>
       </Container>
 
-      {/* Mobile menu panel */}
-      <nav
+      {/* Mobile menu panel: always in the page, so aria-controls always points at something */}
+      <div
         id="mobile-menu"
-        aria-label="Main"
         hidden={!open}
         className="border-t border-border bg-surface md:hidden"
       >
         <Container>
-          <ul className="flex flex-col py-2">
-            {links.map((link) => (
-              <li key={link.href}>
-                <Link
-                  href={link.href}
-                  onClick={() => setOpen(false)}
-                  aria-current={isActive(link.href) ? "page" : undefined}
-                  className="flex min-h-11 items-center font-semibold text-foreground aria-[current=page]:text-primary"
-                >
-                  {link.label}
-                </Link>
-              </li>
-            ))}
-          </ul>
+          <nav aria-label="Main">
+            <ul className="flex flex-col py-2">
+              {NAV_LINKS.map((link) => (
+                <li key={link.href}>
+                  <Link
+                    href={link.href}
+                    onClick={() => setOpen(false)}
+                    aria-current={isActive(link.href) ? "page" : undefined}
+                    className="flex min-h-11 items-center font-semibold text-foreground aria-[current=page]:text-primary"
+                  >
+                    {link.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </nav>
+          <div className="flex flex-col items-start gap-3 border-t border-border py-3">
+            {accountLinks}
+          </div>
         </Container>
-      </nav>
+      </div>
     </header>
   );
 }

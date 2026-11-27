@@ -2,9 +2,10 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { Header } from "@/components/layout/header";
-import { Footer } from "@/components/layout/footer";
+import { AccountLinks } from "@/components/layout/account-links";
 import { Container } from "@/components/layout/container";
+import { Footer } from "@/components/layout/footer";
+import { Header } from "@/components/layout/header";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -18,13 +19,10 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: { default: "NeighbourShare", template: "%s | NeighbourShare" },
-  description: "Lend and borrow high-cost items with your neighbours.",
+  description: "Borrow and lend items with your neighbours.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
-  // TODO: replace with the real session once the auth branch is merged
-  const isSignedIn = false;
-
   return (
     <html
       lang="en"
@@ -46,7 +44,14 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             </header>
           }
         >
-          <Header isSignedIn={isSignedIn} />
+          <Header
+            accountLinks={
+              // The session is read per request, so it loads after the header shell.
+              <Suspense fallback={<span className="h-11" />}>
+                <AccountLinks />
+              </Suspense>
+            }
+          />
         </Suspense>
         <main id="main-content" tabIndex={-1} className="flex-1 py-8 focus:outline-none">
           <Container>{children}</Container>
