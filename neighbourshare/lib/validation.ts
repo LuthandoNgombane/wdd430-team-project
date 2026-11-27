@@ -10,6 +10,15 @@ export type SignUpData = {
 };
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const EMAIL_MAX = 254;
+
+/** Shared by sign-up and sign-in so both check and word it the same way. */
+export const INVALID_EMAIL_MESSAGE = 'Enter a valid email address, like name@example.com.';
+
+/** True when the (trimmed) email looks like name@example.com. */
+export function isValidEmail(email: string): boolean {
+  return email.length <= EMAIL_MAX && EMAIL_PATTERN.test(email);
+}
 
 function asText(value: unknown): string {
   return typeof value === 'string' ? value : '';
@@ -34,8 +43,7 @@ export function validateSignUp(
   else if (data.name.length > 100) errors.name = 'Name must be 100 characters or fewer.';
 
   if (!data.email) errors.email = 'Enter your email address.';
-  else if (data.email.length > 254 || !EMAIL_PATTERN.test(data.email))
-    errors.email = 'Enter a valid email address, like name@example.com.';
+  else if (!isValidEmail(data.email)) errors.email = INVALID_EMAIL_MESSAGE;
 
   if (!data.password) errors.password = 'Enter a password.';
   else if (data.password.length < 8) errors.password = 'Password must be at least 8 characters.';
