@@ -116,6 +116,7 @@ Before requesting review, run the smallest relevant checks and then the standard
 cd neighbourshare
 npm run test:db
 npm run test:listings
+npm run test:profiles
 npx tsc --noEmit
 npm run lint
 npm run build

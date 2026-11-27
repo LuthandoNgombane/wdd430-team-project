@@ -76,15 +76,21 @@ export async function listNeighborhoods(db: Queryable): Promise<string[]> {
 
 export async function listListings(
   db: Queryable,
-  filters: { neighborhood?: string | null; category?: string | null } = {},
+  filters: {
+    neighborhood?: string | null;
+    category?: string | null;
+    /** Only this member's listings (public profile). Must be a valid UUID. */
+    ownerId?: string | null;
+  } = {},
 ): Promise<Listing[]> {
   const { rows } = await db.query(
     `${SELECT_LISTING}
      WHERE l.status = 'active'
        AND ($1::text IS NULL OR l.neighborhood = $1)
        AND ($2::text IS NULL OR l.category = $2)
+       AND ($3::uuid IS NULL OR l.owner_id = $3)
      ORDER BY l.created_at DESC, l.id`,
-    [filters.neighborhood ?? null, filters.category ?? null],
+    [filters.neighborhood ?? null, filters.category ?? null, filters.ownerId ?? null],
   );
   return (rows as ListingRow[]).map(toListing);
 }

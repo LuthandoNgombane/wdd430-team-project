@@ -7,5 +7,5 @@ export default NextAuth(authConfig).auth;
 
 export const config = {
   // Keep in sync with MEMBER_ONLY_PATHS in auth.config.ts.
-  matcher: ['/dashboard/:path*', '/listings/new/:path*', '/listings/:id/edit'],
+  matcher: ['/dashboard/:path*', '/listings/new/:path*', '/listings/:id/edit', '/profile/:path*'],
 };
