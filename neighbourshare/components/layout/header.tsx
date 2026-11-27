@@ -15,6 +15,7 @@ export function Header({ isSignedIn = false }: { isSignedIn?: boolean }) {
   const buttonRef = useRef<HTMLButtonElement>(null);
   const pathname = usePathname();
 
+  // Placeholder
   const authLink = isSignedIn
     ? { href: "/api/auth/signout", label: "Sign out" }
     : { href: "/signin", label: "Sign in" };
@@ -35,7 +36,7 @@ export function Header({ isSignedIn = false }: { isSignedIn?: boolean }) {
       onKeyDown={handleKeyDown}
       className="sticky top-0 z-50 border-b border-border bg-surface"
     >
-      <Container className="flex h-16 items-center justify-between">
+      <Container className="flex h-16 items-center justify-between gap-4">
         <Link href="/" className="min-w-0 truncate text-xl font-semibold text-primary">
           NeighbourShare
         </Link>
@@ -48,7 +49,7 @@ export function Header({ isSignedIn = false }: { isSignedIn?: boolean }) {
                 <Link
                   href={link.href}
                   aria-current={isActive(link.href) ? "page" : undefined}
-                  className="inline-flex min-h-11 items-center font-semibold text-foreground hover:text-primary aria-[current=page]:text-primary aria-[current=page]:underline underline-offset-4"
+                  className="inline-flex min-h-11 items-center font-semibold text-foreground underline-offset-4 hover:text-primary-hover aria-[current=page]:text-primary aria-[current=page]:underline"
                 >
                   {link.label}
                 </Link>
@@ -64,11 +65,19 @@ export function Header({ isSignedIn = false }: { isSignedIn?: boolean }) {
           aria-expanded={open}
           aria-controls="mobile-menu"
           onClick={() => setOpen((o) => !o)}
-          className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md border border-border text-foreground md:hidden"
+          className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-md border border-input-border text-foreground md:hidden"
         >
           <span className="sr-only">{open ? "Close menu" : "Open menu"}</span>
-          <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none"
-               stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+          <svg
+            aria-hidden="true"
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+          >
             {open ? (
               <path d="M6 6l12 12M18 6L6 18" />
             ) : (
@@ -79,26 +88,29 @@ export function Header({ isSignedIn = false }: { isSignedIn?: boolean }) {
       </Container>
 
       {/* Mobile menu panel */}
-      {open && (
-        <nav id="mobile-menu" aria-label="Main" className="border-t border-border bg-surface md:hidden">
-          <Container>
-            <ul className="flex flex-col py-2">
-              {links.map((link) => (
-                <li key={link.href}>
-                  <Link
-                    href={link.href}
-                    onClick={() => setOpen(false)}
-                    aria-current={isActive(link.href) ? "page" : undefined}
-                    className="flex min-h-11 items-center font-semibold text-foreground aria-[current=page]:text-primary"
-                  >
-                    {link.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </Container>
-        </nav>
-      )}
+      <nav
+        id="mobile-menu"
+        aria-label="Main"
+        hidden={!open}
+        className="border-t border-border bg-surface md:hidden"
+      >
+        <Container>
+          <ul className="flex flex-col py-2">
+            {links.map((link) => (
+              <li key={link.href}>
+                <Link
+                  href={link.href}
+                  onClick={() => setOpen(false)}
+                  aria-current={isActive(link.href) ? "page" : undefined}
+                  className="flex min-h-11 items-center font-semibold text-foreground aria-[current=page]:text-primary"
+                >
+                  {link.label}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </Container>
+      </nav>
     </header>
   );
 }
