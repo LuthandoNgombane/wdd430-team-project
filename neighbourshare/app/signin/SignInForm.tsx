@@ -1,6 +1,7 @@
 'use client';
 
 import { useActionState, useEffect, useRef } from 'react';
+import { AlertCircleIcon } from '@/components/ui/icons';
 import { authenticate, type SignInState } from './actions';
 
 const inputClass =
@@ -21,7 +22,13 @@ export default function SignInForm({ redirectTo }: { redirectTo: string }) {
       <input type="hidden" name="redirectTo" value={redirectTo} />
 
       <div role="alert" aria-live="assertive">
-        {state.message && <p className="rounded-md border border-error p-3 text-sm text-error">{state.message}</p>}
+        {state.message && (
+          // Same style as the error box on the profile and listing forms.
+          <p className="flex items-center gap-2 rounded-md border border-error px-3 py-2 text-error">
+            <AlertCircleIcon className="shrink-0" />
+            {state.message}
+          </p>
+        )}
       </div>
 
       <div>
@@ -41,7 +48,8 @@ export default function SignInForm({ redirectTo }: { redirectTo: string }) {
           aria-describedby={state.errors?.email ? 'email-error' : undefined}
         />
         {state.errors?.email && (
-          <p id="email-error" className="mt-1 text-sm text-error">
+          <p id="email-error" className="mt-1 flex items-center gap-1 text-sm text-error">
+            <AlertCircleIcon className="shrink-0" />
             {state.errors.email}
           </p>
         )}
@@ -63,7 +71,8 @@ export default function SignInForm({ redirectTo }: { redirectTo: string }) {
           aria-describedby={state.errors?.password ? 'password-error' : undefined}
         />
         {state.errors?.password && (
-          <p id="password-error" className="mt-1 text-sm text-error">
+          <p id="password-error" className="mt-1 flex items-center gap-1 text-sm text-error">
+            <AlertCircleIcon className="shrink-0" />
             {state.errors.password}
           </p>
         )}

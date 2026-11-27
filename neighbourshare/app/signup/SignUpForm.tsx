@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useLayoutEffect, useRef, useState, type FormEvent } from 'react';
+import { AlertCircleIcon } from '@/components/ui/icons';
 import type { FieldErrors, SignUpField } from '@/lib/validation';
 
 const FIELD_ORDER: SignUpField[] = ['name', 'email', 'password', 'neighborhood'];
@@ -13,16 +14,21 @@ const inputClass =
 function ErrorMessage({ field, errors, emailTaken }: { field: SignUpField; errors: FieldErrors; emailTaken: boolean }) {
   if (!errors[field]) return null;
   return (
-    <p id={`${field}-error`} className="mt-1 text-sm text-error">
-      {errors[field]}
-      {field === 'email' && emailTaken && (
-        <>
-          {' '}
-          <Link href="/signin" className="font-medium underline">
-            Sign in instead
-          </Link>
-        </>
-      )}
+    // Error color with an icon, like the shared form components (components/ui/field.tsx).
+    // items-start keeps the icon on the first line when the "Sign in instead" link wraps.
+    <p id={`${field}-error`} className="mt-1 flex items-start gap-1 text-sm text-error">
+      <AlertCircleIcon className="mt-0.5 shrink-0" />
+      <span>
+        {errors[field]}
+        {field === 'email' && emailTaken && (
+          <>
+            {' '}
+            <Link href="/signin" className="font-medium underline">
+              Sign in instead
+            </Link>
+          </>
+        )}
+      </span>
     </p>
   );
 }
@@ -104,12 +110,19 @@ export default function SignUpForm({ neighborhoods }: { neighborhoods: string[] 
     // noValidate: the server's messages are shown instead of the browser's pop-ups.
     <form ref={formRef} onSubmit={handleSubmit} noValidate className="space-y-5">
       <div role="alert" aria-live="assertive">
+        {/* Same style as the error box on the profile and listing forms. */}
         {errorCount > 0 && (
-          <p className="rounded-md border border-error p-3 text-sm text-error">
+          <p className="flex items-center gap-2 rounded-md border border-error px-3 py-2 text-error">
+            <AlertCircleIcon className="shrink-0" />
             Please fix {errorCount === 1 ? 'the highlighted field' : `the ${errorCount} highlighted fields`}.
           </p>
         )}
-        {formError && <p className="rounded-md border border-error p-3 text-sm text-error">{formError}</p>}
+        {formError && (
+          <p className="flex items-center gap-2 rounded-md border border-error px-3 py-2 text-error">
+            <AlertCircleIcon className="shrink-0" />
+            {formError}
+          </p>
+        )}
       </div>
 
       <div>

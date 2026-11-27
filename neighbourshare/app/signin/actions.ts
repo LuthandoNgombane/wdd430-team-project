@@ -2,6 +2,7 @@
 
 import { AuthError } from 'next-auth';
 import { signIn, signOut } from '@/auth';
+import { INVALID_EMAIL_MESSAGE, isValidEmail } from '@/lib/validation';
 
 export type SignInState = {
   errors?: { email?: string; password?: string };
@@ -20,6 +21,9 @@ export async function authenticate(_previous: SignInState, formData: FormData): 
 
   const errors: SignInState['errors'] = {};
   if (!email) errors.email = 'Enter your email address.';
+  // Same check and message as sign-up. Only the format is checked, so this
+  // never reveals whether an account exists.
+  else if (!isValidEmail(email.toLowerCase())) errors.email = INVALID_EMAIL_MESSAGE;
   if (!password) errors.password = 'Enter your password.';
   if (errors.email || errors.password) return { errors, email };
 

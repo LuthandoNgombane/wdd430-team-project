@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Suspense } from 'react';
+import { CheckCircleIcon } from '@/components/ui/icons';
 import SignInForm from './SignInForm';
 
 export const metadata: Metadata = { title: 'Sign in | NeighbourShare' };
@@ -22,9 +23,15 @@ async function SignInContent({ searchParams }: { searchParams: SearchParams }) {
   return (
     <>
       {params.registered === '1' && (
-        <p role="status" className="mb-6 rounded-md border border-primary p-3 text-sm">
-          Your account was created. Sign in to continue.
-        </p>
+        // Same look as the "Profile saved" banner: tinted background, border
+        // and icon, so success messages are easy to spot.
+        <div role="status" className="mb-6 flex gap-3 rounded-md border border-primary bg-primary/10 p-4">
+          <CheckCircleIcon width={20} height={20} className="mt-0.5 shrink-0 text-primary" />
+          <div>
+            <p className="font-semibold">Account created</p>
+            <p className="mt-1">Sign in to continue.</p>
+          </div>
+        </div>
       )}
       <SignInForm redirectTo={redirectTo} />
     </>
