@@ -4,7 +4,7 @@ import { Suspense } from 'react';
 import { getNeighborhoods } from '@/lib/users';
 import SignUpForm from './SignUpForm';
 
-export const metadata: Metadata = { title: 'Sign up | NeighbourShare' };
+export const metadata: Metadata = { title: 'Sign up' };
 
 async function SignUpFormWithNeighborhoods() {
   const neighborhoods = await getNeighborhoods();
@@ -13,7 +13,7 @@ async function SignUpFormWithNeighborhoods() {
 
 export default function SignUpPage() {
   return (
-    <main className="mx-auto w-full max-w-md px-4 py-12">
+    <div className="mx-auto w-full max-w-md">
       <h1 className="mb-2 text-3xl font-bold">Create your account</h1>
       <p className="mb-8 text-muted">
         Already a member?{' '}
@@ -24,6 +24,6 @@ export default function SignUpPage() {
       <Suspense fallback={<p className="text-muted">Loading form…</p>}>
         <SignUpFormWithNeighborhoods />
       </Suspense>
-    </main>
+    </div>
   );
 }
