@@ -1,6 +1,6 @@
 import type { NextAuthConfig } from 'next-auth';
 
-export const MEMBER_ONLY_PATHS = ['/dashboard', '/listings/new'];
+export const MEMBER_ONLY_PATHS = ['/dashboard', '/listings/new', '/profile'];
 
 export function isMemberOnlyPath(pathname: string): boolean {
   // /listings/<id>/edit is member-only too (the owner check happens on the page).

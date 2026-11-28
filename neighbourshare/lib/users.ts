@@ -55,3 +55,12 @@ export async function verifyCredentials(email: string, password: string): Promis
   if (!user || !passwordMatches || user.status !== 'active') return null;
   return { id: user.id, name: user.name, email: user.email };
 }
+
+/** The name and email to keep in the session cookie. Null for unknown or inactive members. */
+export async function getSessionUser(id: string): Promise<SignedInUser | null> {
+  const result = await getDb().query<SignedInUser>(
+    `SELECT id, name, email FROM users WHERE id = $1 AND status = 'active'`,
+    [id],
+  );
+  return result.rows[0] ?? null;
+}
