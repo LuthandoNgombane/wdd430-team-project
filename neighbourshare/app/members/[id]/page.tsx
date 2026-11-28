@@ -18,12 +18,13 @@ export async function generateMetadata({
 
 export default function MemberPage({ params }: PageProps<"/members/[id]">) {
   return (
-    <main className="mx-auto w-full max-w-6xl px-4 py-12">
+    // The layout provides <main>, the container and the page padding.
+    <div>
       {/* Reads the member from the database, so it loads after the page shell. */}
       <Suspense fallback={<p className="text-muted">Loading the profile…</p>}>
         <MemberProfile params={params} />
       </Suspense>
-    </main>
+    </div>
   );
 }
 

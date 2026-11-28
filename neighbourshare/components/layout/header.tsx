@@ -8,6 +8,7 @@ import { Container } from "./container";
 const NAV_LINKS = [
   { href: "/listings", label: "Browse" },
   { href: "/dashboard", label: "Dashboard" },
+  { href: "/profile", label: "Profile" },
 ];
 
 type HeaderProps = {

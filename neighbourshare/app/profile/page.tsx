@@ -11,7 +11,8 @@ export const metadata: Metadata = { title: "Your profile" };
 
 export default function ProfilePage() {
   return (
-    <main className="mx-auto w-full max-w-2xl px-4 py-12">
+    // The layout provides <main>, the container and the page padding.
+    <div className="mx-auto w-full max-w-2xl">
       <h1 className="mb-2 text-3xl font-bold">Your profile</h1>
       <p className="mb-8 text-muted">
         Your name, neighborhood and bio are public, so neighbors know who they
@@ -21,7 +22,7 @@ export default function ProfilePage() {
       <Suspense fallback={<p className="text-muted">Loading your profile…</p>}>
         <EditProfile />
       </Suspense>
-    </main>
+    </div>
   );
 }
 
