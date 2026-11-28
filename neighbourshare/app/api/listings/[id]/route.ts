@@ -61,8 +61,21 @@ export async function PATCH(
         { error: "Check the highlighted fields.", fields: result.errors },
         { status: 400 },
       );
+    case "conflict":
+      // The new dates would leave an approved borrow outside (#25).
+      return Response.json(
+        {
+          error: "These dates leave out an approved borrow.",
+          fields: result.errors,
+          approvedBorrows: result.borrows,
+        },
+        { status: 409 },
+      );
     case "ok":
-      return Response.json({ listing: result.listing });
+      return Response.json({
+        listing: result.listing,
+        pendingOutsideAvailability: result.pendingOutsideAvailability,
+      });
   }
 }
 
