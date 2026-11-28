@@ -33,8 +33,7 @@ const palette = [
 
 export default function DesignPage() {
   return (
-    <main className="min-h-screen bg-background px-4 py-12 text-foreground">
-      <div className="mx-auto max-w-6xl">
+    <div>
         <h1 className="mb-2 text-3xl font-bold text-primary">
           NeighbourShare Design System
         </h1>
@@ -120,6 +119,5 @@ export default function DesignPage() {
           ))}
         </ul>
       </div>
-    </main>
   );
 }

@@ -4,7 +4,7 @@ import { connection } from 'next/server';
 import { Suspense } from 'react';
 import { auth } from '@/auth';
 
-export const metadata: Metadata = { title: 'Dashboard | NeighbourShare' };
+export const metadata: Metadata = { title: 'Dashboard' };
 
 async function DashboardContent() {
   await connection(); 
@@ -21,10 +21,10 @@ async function DashboardContent() {
 
 export default function DashboardPage() {
   return (
-    <main className="mx-auto w-full max-w-6xl px-4 py-12">
+    <div>
       <Suspense fallback={<p className="text-muted">Loading…</p>}>
         <DashboardContent />
       </Suspense>
-    </main>
+    </div>
   );
 }
