@@ -5,9 +5,13 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { DeleteListingButton } from "@/components/listings/delete-listing-button";
 import { buttonClasses } from "@/components/ui/button";
+import { AlertCircleIcon } from "@/components/ui/icons";
 import { getCurrentUserId, signInPath } from "@/lib/auth/current-user";
 import { getDb } from "@/lib/db";
-import { getListing } from "@/lib/listings/service";
+import {
+  countPendingOutsideAvailability,
+  getListing,
+} from "@/lib/listings/service";
 
 export const metadata: Metadata = { title: "Listing details" };
 
@@ -40,6 +44,10 @@ async function ListingDetails({ params }: { params: Promise<{ id: string }> }) {
   const userId = await getCurrentUserId();
   const isOwner = userId === listing.owner.id;
   const signIn = signInPath(`/listings/${id}`);
+  // Only the owner is told about requests the dates now leave out (#25).
+  const pendingOutside = isOwner
+    ? await countPendingOutsideAvailability(getDb(), id)
+    : 0;
 
   return (
     <article className="grid gap-8 lg:grid-cols-2">
@@ -85,6 +93,27 @@ async function ListingDetails({ params }: { params: Promise<{ id: string }> }) {
             {formatDate(listing.availableTo)}
           </dd>
         </dl>
+
+        {pendingOutside > 0 && (
+          <div
+            role="status"
+            className="flex gap-3 rounded-md border border-warning bg-warning/10 p-4"
+          >
+            <AlertCircleIcon width={20} height={20} className="mt-0.5 shrink-0 text-warning" />
+            <div>
+              <p className="font-semibold">
+                {pendingOutside === 1
+                  ? "1 pending request is outside the available dates"
+                  : `${pendingOutside} pending requests are outside the available dates`}
+              </p>
+              <p className="mt-1">
+                {pendingOutside === 1 ? "It" : "They"} can&apos;t be approved
+                unless you change the dates to include{" "}
+                {pendingOutside === 1 ? "it" : "them"} again.
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* The buttons match who is looking: owner, signed-in member or visitor. */}
         {isOwner ? (

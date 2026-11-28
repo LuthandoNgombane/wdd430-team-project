@@ -63,6 +63,35 @@ export function isListingId(id: string): boolean {
   return UUID.test(id);
 }
 
+/**
+ * Today's date for the community (South Africa), in SQL. The borrow requests
+ * code (#49) uses the same expression, so both agree on what has expired.
+ */
+export const TODAY_SQL =
+  "(statement_timestamp() AT TIME ZONE 'Africa/Johannesburg')::date";
+
+/**
+ * SQL condition: true when a borrow request's dates fall outside its
+ * listing's availability. Pass the table aliases used in the query, e.g.
+ * `${outsideAvailabilitySql("r", "l")} AS "outsideAvailability"`, so the
+ * request pages can mark these requests for the owner and the borrower (#25).
+ */
+export function outsideAvailabilitySql(request = "r", listing = "l"): string {
+  return `(${request}.start_date < ${listing}.available_from OR ${request}.end_date > ${listing}.available_to)`;
+}
+
+const dayFormat = new Intl.DateTimeFormat("en", {
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+  timeZone: "UTC",
+});
+
+/** "2026-12-01" → "Dec 1, 2026" (whole days, so read as UTC). */
+function formatDay(isoDate: string): string {
+  return dayFormat.format(new Date(`${isoDate}T00:00:00Z`));
+}
+
 export function isCategory(value: string): value is Category {
   return (CATEGORIES as readonly string[]).includes(value);
 }
@@ -150,15 +179,47 @@ async function lockListing(
   return (rows[0] as OwnedRow | undefined) ?? null;
 }
 
+type BorrowDates = { startDate: string; endDate: string };
+
 export type UpdateResult =
-  | { kind: "ok"; listing: Listing }
+  | {
+      kind: "ok";
+      listing: Listing;
+      /** Pending requests the saved dates leave outside (they can't be approved). */
+      pendingOutsideAvailability: number;
+    }
   | { kind: "not_found" }
   | { kind: "forbidden" }
-  | { kind: "invalid"; errors: FieldErrors };
+  | { kind: "invalid"; errors: FieldErrors }
+  /** The new dates would leave approved borrows outside. Nothing was saved. */
+  | { kind: "conflict"; errors: FieldErrors; borrows: BorrowDates[] };
+
+/** Pending requests (not yet expired) whose dates are outside the listing's availability. */
+export async function countPendingOutsideAvailability(
+  db: Queryable,
+  listingId: string,
+): Promise<number> {
+  if (!isListingId(listingId)) return 0;
+  const { rows } = await db.query(
+    `SELECT count(*)::int AS n
+     FROM borrow_requests r JOIN listings l ON l.id = r.listing_id
+     WHERE r.listing_id = $1 AND r.status = 'pending'
+       AND r.start_date >= ${TODAY_SQL}
+       AND ${outsideAvailabilitySql("r", "l")}`,
+    [listingId],
+  );
+  return (rows[0] as { n: number }).n;
+}
 
 /**
  * Updates only the fields sent in the body, then checks the whole listing
  * (so changing just one date still checks start <= end).
+ *
+ * The edit is refused if it would leave out an approved borrow that the
+ * current dates cover (#25). Borrows that are already outside (data from
+ * before this rule) don't block unrelated edits. Ended borrows don't count
+ * either: until "mark as returned" exists they stay approved forever, and
+ * they'd stop an owner from ever moving the dates on.
  * Call inside a transaction (withTransaction).
  */
 export async function updateListing(
@@ -182,6 +243,35 @@ export async function updateListing(
   const result = validateListing(merged, await listNeighborhoods(tx));
   if (!result.ok) return { kind: "invalid", errors: result.errors };
   const v = result.value;
+
+  // The listing row is locked, so a borrow can't be approved in the meantime
+  // (approving locks the same row).
+  const { rows: outside } = await tx.query(
+    `SELECT start_date::text AS "startDate", end_date::text AS "endDate"
+     FROM borrow_requests
+     WHERE listing_id = $1 AND status = 'approved' AND end_date >= ${TODAY_SQL}
+       AND start_date >= $4 AND end_date <= $5          -- inside the current dates
+       AND (start_date < $2 OR end_date > $3)           -- outside the new ones
+     ORDER BY start_date`,
+    [id, v.availableFrom, v.availableTo, current.availableFrom, current.availableTo],
+  );
+  if (outside.length) {
+    const borrows = outside as BorrowDates[];
+    const dates = (b: BorrowDates) =>
+      `${formatDay(b.startDate)} to ${formatDay(b.endDate)}`;
+    // One message per date field, about the borrows that field leaves out.
+    const message = (left: BorrowDates[]) =>
+      left.length === 1
+        ? `These dates leave out an approved borrow (${dates(left[0])}).`
+        : `These dates leave out ${left.length} approved borrows (the first is ${dates(left[0])}).`;
+    const errors: FieldErrors = {};
+    const startsBefore = borrows.filter((b) => b.startDate < v.availableFrom);
+    const endsAfter = borrows.filter((b) => b.endDate > v.availableTo);
+    if (startsBefore.length) errors.availableFrom = message(startsBefore);
+    if (endsAfter.length) errors.availableTo = message(endsAfter);
+    return { kind: "conflict", errors, borrows };
+  }
+
   await tx.query(
     `UPDATE listings SET title = $2, description = $3, photo_url = $4,
        category = $5, condition = $6, neighborhood = $7,
@@ -199,7 +289,11 @@ export async function updateListing(
       v.availableTo,
     ],
   );
-  return { kind: "ok", listing: (await getListing(tx, id))! };
+  return {
+    kind: "ok",
+    listing: (await getListing(tx, id))!,
+    pendingOutsideAvailability: await countPendingOutsideAvailability(tx, id),
+  };
 }
 
 export type DeleteResult =
@@ -211,6 +305,10 @@ export type DeleteResult =
 /**
  * Removes a listing from browsing and from its page. The row is kept (status
  * 'inactive') because past borrow requests still point to it.
+ *
+ * Blocked while a request is still open (#25): a pending request that can
+ * still be approved (start date not passed), or an approved borrow that
+ * hasn't ended. Expired requests and ended borrows don't block.
  * Call inside a transaction (withTransaction).
  */
 export async function deleteListing(
@@ -224,7 +322,10 @@ export async function deleteListing(
 
   const { rows } = await tx.query(
     `SELECT 1 FROM borrow_requests
-     WHERE listing_id = $1 AND status IN ('pending', 'approved') LIMIT 1`,
+     WHERE listing_id = $1
+       AND ((status = 'pending' AND start_date >= ${TODAY_SQL})
+         OR (status = 'approved' AND end_date >= ${TODAY_SQL}))
+     LIMIT 1`,
     [id],
   );
   if (rows.length) return { kind: "has_requests" };
