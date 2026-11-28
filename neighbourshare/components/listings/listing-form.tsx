@@ -2,7 +2,13 @@
 
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type FormEvent,
+} from "react";
 import { upload } from "@vercel/blob/client";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
@@ -79,6 +85,30 @@ export function ListingForm({
     setPreview(previewRef.current);
     setFile(chosen);
   }
+
+  // The listing as last saved: what the form goes back to when you leave.
+  const savedValuesRef = useRef<Values>({ ...EMPTY, ...initial });
+
+  // With Cache Components, Next.js keeps this page mounted but hidden after
+  // you navigate away (React <Activity>), and shows it again as it was.
+  // Without a reset, coming back after saving showed a stuck "Saving…" form,
+  // and a chosen photo's preview was broken (its URL is freed on hide).
+  // So when the page is hidden: editing goes back to the listing as last
+  // saved (unsaved edits are discarded, like /profile) and adding starts
+  // empty again.
+  useLayoutEffect(() => {
+    const fileInput = fileInputRef.current;
+    return () => {
+      setValues(editing ? savedValuesRef.current : EMPTY);
+      setErrors({});
+      setFormError("");
+      setSaving(false);
+      setPhoto(null);
+      if (fileInput) fileInput.value = "";
+    };
+    // Runs once: `editing` never changes for a mounted form.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const set = (field: ListingField) => (value: string) => {
     setValues((v) => ({ ...v, [field]: value }));
@@ -163,11 +193,14 @@ export function ListingForm({
       );
       const data = await response.json().catch(() => ({}));
       if (response.ok) {
+        savedValuesRef.current = { ...values, photoUrl };
         router.push(`/listings/${data.listing.id}`);
         return; // keep the button disabled while the next page loads
       }
       if (response.status === 401) throw new SignedOut();
-      if (response.status === 400 && data.fields) {
+      // 400: invalid fields. 409: the new dates would break an approved
+      // borrow (#25); the reason is attached to the date field.
+      if (data.fields) {
         showErrors(data.fields);
       } else {
         setFormError(data.error ?? "Something went wrong. Try again.");
